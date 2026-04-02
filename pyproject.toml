@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ntnx-api-mcp-server"
+version = "0.1.0"
+description = "Nutanix V4 API MCP server"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Nutanix" }]
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.28.0",
+    "pyyaml>=6.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "tenacity>=8.0.0",
+]
+
+[project.scripts]
+nutanix-mcp = "src.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

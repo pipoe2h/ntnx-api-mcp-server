@@ -1,0 +1,28 @@
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+*.so
+
+# Packaging/build output
+build/
+dist/
+*.egg-info/
+
+# Local environments
+.venv/
+venv/
+env/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime logs
+*.log
+logs/
+
+# IDE and OS files
+.DS_Store
+.idea/
+.vscode/
