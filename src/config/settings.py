@@ -13,7 +13,6 @@ from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .constants import (
-    DEFAULT_STARTUP_PAGINATION_LIMIT,
     DEFAULT_STARTUP_RETRY_ATTEMPTS,
     DEFAULT_STARTUP_TIMEOUT_SECONDS,
     DEVELOPERS_NAMESPACE_LIST_URL,
@@ -76,11 +75,6 @@ class Settings(BaseSettings):
     def startup_retry_attempts(self) -> int:
         """Internal startup probe retry count."""
         return DEFAULT_STARTUP_RETRY_ATTEMPTS
-
-    @property
-    def startup_pagination_limit(self) -> int:
-        """Internal startup list pagination limit."""
-        return DEFAULT_STARTUP_PAGINATION_LIMIT
 
     @property
     def namespace_overrides(self) -> list[str]:

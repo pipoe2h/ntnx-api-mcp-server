@@ -6,9 +6,6 @@ DEFAULT_STARTUP_TIMEOUT_SECONDS = 30.0
 # Number of retry attempts for startup-time probes before failing fast.
 DEFAULT_STARTUP_RETRY_ATTEMPTS = 3
 
-# Page size used for startup-time list calls where pagination is required.
-DEFAULT_STARTUP_PAGINATION_LIMIT = 50
-
 # Public namespace discovery endpoint.
 DEVELOPERS_NAMESPACE_LIST_URL = "https://developers.nutanix.com/api/v1/namespaces"
 
