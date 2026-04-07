@@ -32,8 +32,11 @@ Provide the following values through one of the supported sources:
 - `PC_USERNAME`
 - `PC_PASSWORD`
 - `PC_INSECURE` (optional, default: `true`)
+- `ARTIFACTS_DIR` (optional, default: `./artifacts`)
 - `LOG_LEVEL` (optional, default: `INFO`)
 - `LOG_FORMAT` (optional: `text` or `json`)
+- `NAMESPACE_SOURCE_URL` (optional, default: Nutanix developers namespaces API)
+- `NAMESPACE_OVERRIDE_LIST` (optional comma-separated list)
 
 ### Precedence
 
@@ -42,6 +45,25 @@ When multiple sources are used together:
 1. `.env` and process environment
 2. Config file (`--config-file`)
 3. CLI flags
+
+## Commands
+
+### `nutanix-mcp init`
+
+- Discovers namespaces from developers API (or override list)
+- Probes namespace version from target Prism Central
+- Downloads YAML artifacts as `<namespace>-<version>-all-documentation.yaml`
+
+### `nutanix-mcp refresh`
+
+- Clears existing `*-all-documentation.yaml` files from artifacts directory
+- Re-runs the same namespace/version download flow
+
+### `nutanix-mcp run`
+
+- Loads YAMLs from runtime `artifacts/` first
+- Falls back to bundled `src/artifacts/default_specs/`
+- Parses GET operations and builds namespace execute tool schemas
 
 ## License
 
