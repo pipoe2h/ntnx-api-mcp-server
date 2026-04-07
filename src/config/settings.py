@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-import os
 import json
-from pathlib import Path
+import os
 import tomllib
+from pathlib import Path
 from typing import Any, Literal, Mapping
 
+import yaml
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import yaml
 
 from .constants import (
     DEFAULT_STARTUP_RETRY_ATTEMPTS,
     DEFAULT_STARTUP_TIMEOUT_SECONDS,
+    DEVELOPERS_NAMESPACE_LIST_URL,
 )
 
 
@@ -28,12 +29,27 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Prism Central basic auth configuration (required)
-    pc_host: str = Field(..., description="Prism Central host (IP or FQDN)")
-    pc_port: int = Field(..., description="Prism Central API port")
-    pc_username: str = Field(..., description="Prism Central username")
-    pc_password: SecretStr = Field(..., description="Prism Central password")
+    # Prism Central connection
+    pc_host: str = Field(default="localhost", description="Prism Central host (IP or FQDN)")
+    pc_port: int = Field(default=9440, description="Prism Central API port")
+    pc_username: str | None = Field(default=None, description="Prism Central username")
+    pc_password: SecretStr | None = Field(default=None, description="Prism Central password")
     pc_insecure: bool = Field(default=True, description="Skip TLS certificate verification")
+
+    # Runtime locations
+    artifacts_dir: Path | None = Field(default=None, description="Runtime artifacts directory")
+    default_artifacts_dir: Path | None = Field(
+        default=None, description="Bundled fallback specs directory"
+    )
+
+    # Namespace discovery / fetching
+    namespace_source_url: str = Field(
+        default=DEVELOPERS_NAMESPACE_LIST_URL, description="Namespace discovery endpoint"
+    )
+    namespace_override_list: str | None = Field(
+        default=None,
+        description="Comma-separated namespace override list for restricted environments",
+    )
 
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -45,38 +61,43 @@ class Settings(BaseSettings):
         return Path(__file__).resolve().parents[2]
 
     @property
-    def artifacts_dir(self) -> Path:
-        """Internally controlled runtime artifacts directory."""
-        return self.project_root / "artifacts"
-
-    @property
-    def default_artifacts_dir(self) -> Path:
-        """Internally controlled bundled default specs directory."""
-        return self.project_root / "src" / "artifacts" / "default_specs"
-
-    @property
     def pc_base_url(self) -> str:
         """Base API URL for Prism Central."""
-        return f"https://{self.pc_host}:{self.pc_port}/api"
+        scheme = "https" if self.pc_port == 9440 else "http"
+        return f"{scheme}://{self.pc_host}:{self.pc_port}/api"
 
     @property
     def startup_timeout_seconds(self) -> float:
-        """Internal startup probe timeout (not user configurable)."""
+        """Internal startup probe timeout."""
         return DEFAULT_STARTUP_TIMEOUT_SECONDS
 
     @property
     def startup_retry_attempts(self) -> int:
-        """Internal startup probe retry count (not user configurable)."""
+        """Internal startup probe retry count."""
         return DEFAULT_STARTUP_RETRY_ATTEMPTS
+
+    @property
+    def namespace_overrides(self) -> list[str]:
+        """Optional list of namespace overrides."""
+        if not self.namespace_override_list:
+            return []
+        return [
+            value.strip()
+            for value in self.namespace_override_list.split(",")
+            if value.strip()
+        ]
 
     @model_validator(mode="after")
     def validate_paths(self) -> "Settings":
-        """Ensure internal directories are present and usable."""
+        """Ensure runtime and fallback artifact directories are usable."""
+        if self.artifacts_dir is None:
+            self.artifacts_dir = self.project_root / "artifacts"
+        if self.default_artifacts_dir is None:
+            self.default_artifacts_dir = self.project_root / "src" / "artifacts" / "default_specs"
+
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         if not self.default_artifacts_dir.exists():
-            raise ValueError(
-                f"Bundled default specs directory is missing: {self.default_artifacts_dir}"
-            )
+            self.default_artifacts_dir.mkdir(parents=True, exist_ok=True)
         if not self.default_artifacts_dir.is_dir():
             raise ValueError(
                 f"Bundled default specs path is not a directory: {self.default_artifacts_dir}"
@@ -96,50 +117,41 @@ def _load_settings_file(config_file: Path) -> dict[str, Any]:
 
     suffix = config_file.suffix.lower()
     with config_file.open("rb") as file_handle:
-        if suffix == ".json":
-            return json.loads(file_handle.read().decode("utf-8"))
-        if suffix in {".yaml", ".yml"}:
-            loaded_yaml = yaml.safe_load(file_handle.read().decode("utf-8"))
-            return loaded_yaml if isinstance(loaded_yaml, dict) else {}
-        if suffix == ".toml":
-            loaded_toml = tomllib.loads(file_handle.read().decode("utf-8"))
-            return loaded_toml if isinstance(loaded_toml, dict) else {}
+        content = file_handle.read().decode("utf-8")
+    if suffix == ".json":
+        loaded_json = json.loads(content)
+        return loaded_json if isinstance(loaded_json, dict) else {}
+    if suffix in {".yaml", ".yml"}:
+        loaded_yaml = yaml.safe_load(content)
+        return loaded_yaml if isinstance(loaded_yaml, dict) else {}
+    if suffix == ".toml":
+        loaded_toml = tomllib.loads(content)
+        return loaded_toml if isinstance(loaded_toml, dict) else {}
 
-    raise ValueError(
-        "Unsupported settings file extension. Use .json, .yaml/.yml, or .toml."
-    )
+    raise ValueError("Unsupported settings file extension. Use .json, .yaml/.yml, or .toml.")
 
 
 def _normalize_payload_keys(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """
-    Normalize payload keys to Settings field names.
-
-    This allows config files and future CLI layers to use either:
-    - snake_case: pc_host
-    - env-style: PC_HOST
-    """
+    """Normalize payload keys to snake_case settings names."""
     normalized: dict[str, Any] = {}
     for key, value in payload.items():
-        key_name = key.lower()
-        normalized[key_name] = value
+        normalized[key.lower()] = value
     return normalized
 
 
 def _build_env_payload() -> dict[str, Any]:
-    """
-    Build environment payload from process env.
-
-    `.env` loading is handled by BaseSettings via model_config.
-    This helper exists only to make precedence explicit in load_settings.
-    """
+    """Build environment payload from process env and `.env`."""
     env_keys = {
         "PC_HOST": "pc_host",
         "PC_PORT": "pc_port",
         "PC_USERNAME": "pc_username",
         "PC_PASSWORD": "pc_password",
         "PC_INSECURE": "pc_insecure",
+        "ARTIFACTS_DIR": "artifacts_dir",
         "LOG_LEVEL": "log_level",
         "LOG_FORMAT": "log_format",
+        "NAMESPACE_SOURCE_URL": "namespace_source_url",
+        "NAMESPACE_OVERRIDE_LIST": "namespace_override_list",
     }
     env_payload: dict[str, Any] = {}
     for env_key, field_name in env_keys.items():
@@ -152,25 +164,12 @@ def load_settings(
     config_file: str | Path | None = None,
     overrides: Mapping[str, Any] | None = None,
 ) -> Settings:
-    """
-    Build settings from layered sources.
-
-    Precedence (lowest -> highest):
-    1. `.env` and process environment
-    2. Optional settings file payload
-    3. Optional explicit overrides (CLI)
-    """
-    # Start with env-derived values (includes docker orchestration use case).
-    # BaseSettings still reads env/.env, but we make the merge explicit so file and
-    # override precedence is deterministic and easy to reason about.
+    """Build settings from environment, config-file, and CLI overrides."""
     merged_payload: dict[str, Any] = _build_env_payload()
-
     if config_file is not None:
         file_payload = _normalize_payload_keys(_load_settings_file(Path(config_file)))
         merged_payload.update(file_payload)
-
-    override_payload = _normalize_payload_keys(dict(overrides or {}))
-    merged_payload.update(override_payload)
+    merged_payload.update(_normalize_payload_keys(dict(overrides or {})))
     return Settings(**merged_payload)
 
 
