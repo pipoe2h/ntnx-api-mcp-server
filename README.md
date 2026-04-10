@@ -65,6 +65,12 @@ When multiple sources are used together:
 - Falls back to bundled `src/artifacts/default_specs/`
 - Parses GET operations and builds namespace execute tool schemas
 
+## Tool contract
+
+- Runtime exposes namespace execution tools in the form `<namespace>_execute`
+- Each namespace tool uses a compact description and an explicit `operation` selector
+- Operation and request field validation is deterministic (no fuzzy server-side matching)
+
 ## License
 
 Apache 2.0

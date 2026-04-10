@@ -34,33 +34,6 @@ class APIHandler:
             response = client.get(url, params=query_params or {}, headers=headers or {})
         return self._as_result(response)
 
-    def execute_write_request(
-        self,
-        method: str,
-        path: str,
-        path_params: dict[str, Any] | None = None,
-        query_params: dict[str, Any] | None = None,
-        headers: dict[str, str] | None = None,
-        body: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Execute a write request (used only for explicitly allowed operations)."""
-        resolved_path = self._resolve_path(path, path_params or {})
-        url = f"{self.settings.pc_base_url}{resolved_path}"
-        auth = self._build_auth()
-        with httpx.Client(
-            verify=not self.settings.pc_insecure,
-            timeout=self.settings.startup_timeout_seconds,
-            auth=auth,
-        ) as client:
-            response = client.request(
-                method=method.upper(),
-                url=url,
-                params=query_params or {},
-                headers=headers or {},
-                json=body or {},
-            )
-        return self._as_result(response)
-
     @staticmethod
     def _resolve_path(path: str, path_params: dict[str, Any]) -> str:
         resolved_path = path
