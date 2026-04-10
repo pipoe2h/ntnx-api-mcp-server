@@ -61,3 +61,98 @@ class ToolGenerator:
         for operation in self.operations:
             index[operation.operation_id] = asdict(operation)
         return index
+
+    def build_discovery_tools(self) -> list[dict[str, Any]]:
+        """Build progressive disclosure helper tool schemas."""
+        return [
+            {
+                "name": "listOperations",
+                "description": "List available operations, optionally filtered by namespace or search text.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "namespace": {"type": "string"},
+                        "search": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+                        "offset": {"type": "integer", "minimum": 0},
+                    },
+                },
+            },
+            {
+                "name": "getOperationSchema",
+                "description": "Get full schema details for a specific operation id.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"operation": {"type": "string"}},
+                    "required": ["operation"],
+                },
+            },
+            {
+                "name": "getCodeSample",
+                "description": "Get a language-specific code sample for an operation when available.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {"type": "string"},
+                        "language": {"type": "string"},
+                    },
+                    "required": ["operation", "language"],
+                },
+            },
+        ]
+
+    def list_operations(
+        self,
+        namespace: str | None = None,
+        search: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """List operations with optional namespace/search filtering and pagination."""
+        normalized_namespace = namespace.strip() if isinstance(namespace, str) else None
+        normalized_search = search.lower().strip() if isinstance(search, str) else None
+
+        items: list[dict[str, Any]] = []
+        for operation in self.operations:
+            if normalized_namespace and operation.namespace != normalized_namespace:
+                continue
+            if normalized_search:
+                content = " ".join(
+                    [
+                        operation.operation_id,
+                        operation.path,
+                        operation.summary,
+                        operation.description,
+                    ]
+                ).lower()
+                if normalized_search not in content:
+                    continue
+            items.append(
+                {
+                    "namespace": operation.namespace,
+                    "operation": operation.operation_id,
+                    "method": operation.method,
+                    "path": operation.path,
+                    "summary": operation.summary,
+                }
+            )
+
+        items.sort(key=lambda value: (value["namespace"], value["operation"]))
+        return items[offset : offset + limit]
+
+    def get_operation_schema(self, operation_id: str) -> dict[str, Any]:
+        """Return detailed schema dictionary for an operation id."""
+        operation_index = self.build_operation_index()
+        if operation_id not in operation_index:
+            raise KeyError(f"Unknown operation id: {operation_id}")
+        return operation_index[operation_id]
+
+    def get_code_sample(self, operation_id: str, language: str) -> dict[str, Any] | None:
+        """Return the best matching code sample for operation/language."""
+        schema = self.get_operation_schema(operation_id)
+        requested = language.lower().strip()
+        for sample in schema.get("code_samples", []):
+            sample_language = sample.get("lang") or sample.get("language")
+            if isinstance(sample_language, str) and sample_language.lower() == requested:
+                return sample
+        return None

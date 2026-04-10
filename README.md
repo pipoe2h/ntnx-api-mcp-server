@@ -65,6 +65,12 @@ When multiple sources are used together:
 - Falls back to bundled `src/artifacts/default_specs/`
 - Parses GET operations and builds namespace execute tool schemas
 
+## Progressive discovery helpers
+
+- `listOperations`: lightweight operation catalog with namespace/search filters
+- `getOperationSchema`: on-demand full schema payload for a selected operation
+- `getCodeSample`: language-specific sample retrieval when provided in OpenAPI extensions
+
 ## License
 
 Apache 2.0

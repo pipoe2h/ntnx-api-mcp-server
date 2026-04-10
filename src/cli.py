@@ -165,6 +165,7 @@ def main() -> None:
                 "artifact_files": [str(path) for path in load_result.files],
                 "operation_count": len(load_result.operations),
                 "namespace_tool_count": len(load_result.namespace_tools),
+                "discovery_tool_count": len(load_result.discovery_tools),
             },
             indent=2,
         )

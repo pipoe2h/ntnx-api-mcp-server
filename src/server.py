@@ -21,6 +21,7 @@ class StartupLoadResult:
     files: list[Path]
     operations: list[OperationInfo]
     namespace_tools: list[dict[str, Any]]
+    discovery_tools: list[dict[str, Any]]
     operation_index: dict[str, dict[str, Any]]
 
 
@@ -81,6 +82,7 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
 
     generator = ToolGenerator(operations)
     namespace_tools = generator.build_namespace_tools()
+    discovery_tools = generator.build_discovery_tools()
     operation_index = generator.build_operation_index()
 
     return StartupLoadResult(
@@ -89,5 +91,6 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
         files=files,
         operations=operations,
         namespace_tools=namespace_tools,
+        discovery_tools=discovery_tools,
         operation_index=operation_index,
     )
