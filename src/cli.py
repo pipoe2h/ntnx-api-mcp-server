@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .auth import StartupValidationError, validate_startup_readiness
 from .config import load_settings
 from .server import load_operations_from_yamls
 
@@ -155,11 +156,27 @@ def main() -> None:
         print(json.dumps(result, indent=2))
         return
 
+    try:
+        readiness = validate_startup_readiness(settings)
+    except StartupValidationError as exc:
+        print(
+            json.dumps(
+                {
+                    "mode": "run",
+                    "startup_ready": False,
+                    "error": str(exc),
+                },
+                indent=2,
+            )
+        )
+        raise SystemExit(1) from exc
+
     load_result = load_operations_from_yamls(settings)
     print(
         json.dumps(
             {
                 "mode": "run",
+                "startup_ready": readiness.ok,
                 "artifacts_source": load_result.artifacts_source,
                 "artifact_directory": str(load_result.artifact_directory),
                 "artifact_files": [str(path) for path in load_result.files],
