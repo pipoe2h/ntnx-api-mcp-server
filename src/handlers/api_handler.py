@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 
+from src.auth import build_basic_auth
 from src.config import Settings
 
 
@@ -25,7 +26,7 @@ class APIHandler:
         """Execute a GET request against Prism Central."""
         resolved_path = self._resolve_path(path, path_params or {})
         url = f"{self.settings.pc_base_url}{resolved_path}"
-        auth = self._build_auth()
+        auth = build_basic_auth(self.settings)
         with httpx.Client(
             verify=not self.settings.pc_insecure,
             timeout=self.settings.startup_timeout_seconds,
@@ -46,7 +47,7 @@ class APIHandler:
         """Execute a write request (used only for explicitly allowed operations)."""
         resolved_path = self._resolve_path(path, path_params or {})
         url = f"{self.settings.pc_base_url}{resolved_path}"
-        auth = self._build_auth()
+        auth = build_basic_auth(self.settings)
         with httpx.Client(
             verify=not self.settings.pc_insecure,
             timeout=self.settings.startup_timeout_seconds,
@@ -67,13 +68,6 @@ class APIHandler:
         for key, value in path_params.items():
             resolved_path = resolved_path.replace("{" + key + "}", str(value))
         return resolved_path
-
-    def _build_auth(self) -> tuple[str, str] | None:
-        username = self.settings.pc_username
-        password = self.settings.pc_password.get_secret_value() if self.settings.pc_password else None
-        if username and password:
-            return (username, password)
-        return None
 
     @staticmethod
     def _as_result(response: httpx.Response) -> dict[str, Any]:

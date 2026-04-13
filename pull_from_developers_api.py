@@ -10,6 +10,7 @@ import httpx
 import yaml
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from src.auth import build_basic_auth
 from src.config import Settings
 from src.config.constants import (
     ARTIFACT_FILENAME_SUFFIX,
@@ -99,13 +100,10 @@ def get_namespace_version(settings: Settings, namespace: str) -> str | None:
         pc_port=settings.pc_port,
         namespace=namespace,
     )
-    auth = None
-    if settings.pc_username and settings.pc_password:
-        auth = (settings.pc_username, settings.pc_password.get_secret_value())
     with httpx.Client(
         timeout=settings.startup_timeout_seconds,
         verify=not settings.pc_insecure,
-        auth=auth,
+        auth=build_basic_auth(settings),
     ) as client:
         response = client.options(url)
 
