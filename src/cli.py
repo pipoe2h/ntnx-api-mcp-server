@@ -109,10 +109,14 @@ def main() -> None:
             json.dumps(
                 {
                     "mode": "init",
+                    "discovered": summary.discovered,
+                    "processed": summary.processed,
                     "success": summary.success,
                     "skipped": summary.skipped,
                     "failed": summary.failed,
                     "skipped_reasons": summary.skipped_reasons,
+                    "failed_reasons": summary.failed_reasons,
+                    "duration_ms": summary.duration_ms,
                 },
                 indent=2,
             )
@@ -132,10 +136,16 @@ def main() -> None:
             json.dumps(
                 {
                     "mode": "refresh",
+                    "discovered": summary.discovered,
+                    "processed": summary.processed,
                     "success": summary.success,
                     "skipped": summary.skipped,
                     "failed": summary.failed,
+                    "deleted_artifacts": summary.deleted_artifacts,
+                    "restored_artifacts": summary.restored_artifacts,
                     "skipped_reasons": summary.skipped_reasons,
+                    "failed_reasons": summary.failed_reasons,
+                    "duration_ms": summary.duration_ms,
                 },
                 indent=2,
             )

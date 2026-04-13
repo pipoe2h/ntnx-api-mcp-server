@@ -56,8 +56,12 @@ When multiple sources are used together:
 
 ### `nutanix-mcp refresh`
 
-- Clears existing `*-all-documentation.yaml` files from artifacts directory
-- Re-runs the same namespace/version download flow
+- Runs refresh with backup/restore safety:
+  - stages existing `*-all-documentation.yaml` artifacts into a temporary backup
+  - downloads refreshed artifacts per namespace/version
+  - restores previous artifacts for namespaces that could not be refreshed
+  - restores all previous artifacts if refresh has zero successful downloads
+- Emits refresh metrics (discovered/processed/success/skipped/failed, deleted/restored counts, duration)
 
 ### `nutanix-mcp run`
 

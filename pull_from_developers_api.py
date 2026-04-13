@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import shutil
+import time
 from typing import Any
 
 import httpx
@@ -23,18 +25,53 @@ from src.config.constants import (
 class DownloadSummary:
     """Fetch summary for init/refresh workflows."""
 
+    discovered: int = 0
+    processed: int = 0
     success: int = 0
     skipped: int = 0
     failed: int = 0
+    deleted_artifacts: int = 0
+    restored_artifacts: int = 0
+    duration_ms: int = 0
     skipped_reasons: dict[str, int] | None = None
+    failed_reasons: dict[str, int] | None = None
+    namespace_results: list[dict[str, Any]] | None = None
 
     def __post_init__(self) -> None:
         if self.skipped_reasons is None:
             self.skipped_reasons = {}
+        if self.failed_reasons is None:
+            self.failed_reasons = {}
+        if self.namespace_results is None:
+            self.namespace_results = []
 
     def add_skipped(self, reason: str) -> None:
         self.skipped += 1
         self.skipped_reasons[reason] = self.skipped_reasons.get(reason, 0) + 1
+
+    def add_failed(self, reason: str) -> None:
+        self.failed += 1
+        self.failed_reasons[reason] = self.failed_reasons.get(reason, 0) + 1
+
+    def add_namespace_result(
+        self,
+        namespace: str,
+        status: str,
+        reason: str | None = None,
+        version: str | None = None,
+        artifact: str | None = None,
+        duration_ms: int | None = None,
+    ) -> None:
+        self.namespace_results.append(
+            {
+                "namespace": namespace,
+                "status": status,
+                "reason": reason,
+                "version": version,
+                "artifact": artifact,
+                "duration_ms": duration_ms,
+            }
+        )
 
 
 def get_namespaces(settings: Settings) -> list[str]:
@@ -144,6 +181,39 @@ def _clear_previous_artifacts(artifacts_dir: Path) -> None:
         file_path.unlink(missing_ok=True)
 
 
+def _namespace_from_artifact_filename(file_name: str) -> str:
+    dash_index = file_name.find("-")
+    if dash_index <= 0:
+        return "unknown"
+    return file_name[:dash_index]
+
+
+def _prepare_refresh_backup(artifacts_dir: Path) -> tuple[Path, list[Path]]:
+    existing_files = sorted(artifacts_dir.glob(f"*{ARTIFACT_FILENAME_SUFFIX}"))
+    backup_dir = artifacts_dir / ".refresh_backup"
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    for file_path in existing_files:
+        shutil.move(str(file_path), str(backup_dir / file_path.name))
+    return backup_dir, existing_files
+
+
+def _restore_backup_artifacts(
+    artifacts_dir: Path,
+    backup_dir: Path,
+    processed_namespaces: set[str],
+) -> int:
+    restored = 0
+    for backup_file in backup_dir.glob(f"*{ARTIFACT_FILENAME_SUFFIX}"):
+        namespace = _namespace_from_artifact_filename(backup_file.name)
+        # If a namespace was not refreshed successfully this cycle, keep last-known-good artifact.
+        if namespace not in processed_namespaces:
+            shutil.move(str(backup_file), str(artifacts_dir / backup_file.name))
+            restored += 1
+    return restored
+
+
 def download_yamls(
     settings: Settings,
     refresh: bool = False,
@@ -158,33 +228,106 @@ def download_yamls(
     artifacts_dir = settings.artifacts_dir
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
+    started = time.perf_counter()
+    backup_dir: Path | None = None
+    backup_files: list[Path] = []
     if refresh:
-        _clear_previous_artifacts(artifacts_dir)
+        backup_dir, backup_files = _prepare_refresh_backup(artifacts_dir)
 
     summary = DownloadSummary()
-    for namespace in get_namespaces(settings):
+    namespaces = get_namespaces(settings)
+    summary.discovered = len(namespaces)
+    processed_namespaces: set[str] = set()
+    for namespace in namespaces:
+        namespace_started = time.perf_counter()
+        summary.processed += 1
         try:
             version = get_namespace_version(settings, namespace)
             if not version:
                 summary.add_skipped("missing_version_or_namespace")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="skipped",
+                    reason="missing_version_or_namespace",
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
                 continue
 
             output_path = artifacts_dir / f"{namespace}-{version}{ARTIFACT_FILENAME_SUFFIX}"
             if output_path.exists() and not force:
                 summary.add_skipped("already_exists")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="skipped",
+                    reason="already_exists",
+                    version=version,
+                    artifact=str(output_path),
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
                 continue
 
             content = _download_yaml(settings, namespace, version)
             if not _validate_and_save_yaml(content, output_path):
-                summary.failed += 1
+                summary.add_failed("yaml_validation_failed")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="failed",
+                    reason="yaml_validation_failed",
+                    version=version,
+                    artifact=str(output_path),
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
                 continue
+            processed_namespaces.add(namespace)
             summary.success += 1
+            summary.add_namespace_result(
+                namespace=namespace,
+                status="success",
+                version=version,
+                artifact=str(output_path),
+                duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+            )
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
                 summary.add_skipped("not_found")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="skipped",
+                    reason="not_found",
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
             else:
-                summary.failed += 1
-        except Exception:
-            summary.failed += 1
+                summary.add_failed("http_error")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="failed",
+                    reason="http_error",
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
+        except Exception as exc:
+            summary.add_failed("unexpected_error")
+            summary.add_namespace_result(
+                namespace=namespace,
+                status="failed",
+                reason=f"unexpected_error:{type(exc).__name__}",
+                duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+            )
 
+    if refresh and backup_dir is not None:
+        summary.deleted_artifacts = len(backup_files)
+        # If refresh had no successful downloads, restore everything for offline resilience.
+        if summary.success == 0:
+            for backup_file in backup_dir.glob(f"*{ARTIFACT_FILENAME_SUFFIX}"):
+                shutil.move(str(backup_file), str(artifacts_dir / backup_file.name))
+                summary.restored_artifacts += 1
+        else:
+            # Keep prior artifacts for namespaces not refreshed successfully.
+            summary.restored_artifacts += _restore_backup_artifacts(
+                artifacts_dir=artifacts_dir,
+                backup_dir=backup_dir,
+                processed_namespaces=processed_namespaces,
+            )
+        shutil.rmtree(backup_dir, ignore_errors=True)
+
+    summary.duration_ms = int((time.perf_counter() - started) * 1000)
     return summary
