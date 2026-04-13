@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from src.generators import ToolGenerator
+from src.generators.models import ToolDefinition, ToolInputSchema
 from src.parsers import OperationInfo, ParameterInfo
 
 
@@ -64,3 +66,16 @@ def test_get_operation_schema_raises_for_unknown_operation() -> None:
     generator = ToolGenerator(_operations())
     with pytest.raises(KeyError):
         generator.get_operation_schema("doesNotExist")
+
+
+def test_tool_models_reject_unknown_fields() -> None:
+    with pytest.raises(ValidationError):
+        ToolInputSchema(properties={"operation": {"type": "string"}}, unknown="x")
+
+    with pytest.raises(ValidationError):
+        ToolDefinition(
+            name="listOperations",
+            description="desc",
+            inputSchema=ToolInputSchema(properties={}),
+            unknown="x",
+        )

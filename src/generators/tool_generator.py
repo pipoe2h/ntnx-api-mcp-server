@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from src.generators.models import OperationDiscoveryItem, ToolDefinition, ToolInputSchema
 from src.parsers import OperationInfo
 
 
@@ -26,33 +27,28 @@ class ToolGenerator:
         tools: list[dict[str, Any]] = []
         for namespace, operations in sorted(self.group_by_namespace().items()):
             operation_ids = [operation.operation_id for operation in operations]
-            tools.append(
-                {
-                    "name": f"{namespace}_execute",
-                    "description": (
-                        f"Execute operations from the {namespace} namespace. "
-                        f"Available operations: {', '.join(operation_ids[:10])}"
-                        + (", ..." if len(operation_ids) > 10 else "")
-                    ),
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "operation": {"type": "string", "enum": operation_ids},
-                            "_page": {"type": "integer", "minimum": 0},
-                            "_limit": {"type": "integer", "minimum": 1, "maximum": 100},
-                            "_filter": {"type": "string"},
-                            "_orderby": {"type": "string"},
-                            "_select": {"type": "string"},
-                            "_expand": {"type": "string"},
-                        },
-                        "required": ["operation"],
+            tool = ToolDefinition(
+                name=f"{namespace}_execute",
+                description=(
+                    f"Execute operations from the {namespace} namespace. "
+                    f"Available operations: {', '.join(operation_ids[:10])}"
+                    + (", ..." if len(operation_ids) > 10 else "")
+                ),
+                inputSchema=ToolInputSchema(
+                    properties={
+                        "operation": {"type": "string", "enum": operation_ids},
+                        "_page": {"type": "integer", "minimum": 0},
+                        "_limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                        "_filter": {"type": "string"},
+                        "_orderby": {"type": "string"},
+                        "_select": {"type": "string"},
+                        "_expand": {"type": "string"},
                     },
-                    "metadata": {
-                        "namespace": namespace,
-                        "operation_count": len(operation_ids),
-                    },
-                }
+                    required=["operation"],
+                ),
+                metadata={"namespace": namespace, "operation_count": len(operation_ids)},
             )
+            tools.append(tool.model_dump(by_alias=True, exclude_none=True))
         return tools
 
     def build_operation_index(self) -> dict[str, dict[str, Any]]:
@@ -64,42 +60,40 @@ class ToolGenerator:
 
     def build_discovery_tools(self) -> list[dict[str, Any]]:
         """Build progressive disclosure helper tool schemas."""
-        return [
-            {
-                "name": "listOperations",
-                "description": "List available operations, optionally filtered by namespace or search text.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
+        definitions = [
+            ToolDefinition(
+                name="listOperations",
+                description="List available operations, optionally filtered by namespace or search text.",
+                inputSchema=ToolInputSchema(
+                    properties={
                         "namespace": {"type": "string"},
                         "search": {"type": "string"},
                         "limit": {"type": "integer", "minimum": 1, "maximum": 500},
                         "offset": {"type": "integer", "minimum": 0},
-                    },
-                },
-            },
-            {
-                "name": "getOperationSchema",
-                "description": "Get full schema details for a specific operation id.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {"operation": {"type": "string"}},
-                    "required": ["operation"],
-                },
-            },
-            {
-                "name": "getCodeSample",
-                "description": "Get a language-specific code sample for an operation when available.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
+                    }
+                ),
+            ),
+            ToolDefinition(
+                name="getOperationSchema",
+                description="Get full schema details for a specific operation id.",
+                inputSchema=ToolInputSchema(
+                    properties={"operation": {"type": "string"}},
+                    required=["operation"],
+                ),
+            ),
+            ToolDefinition(
+                name="getCodeSample",
+                description="Get a language-specific code sample for an operation when available.",
+                inputSchema=ToolInputSchema(
+                    properties={
                         "operation": {"type": "string"},
                         "language": {"type": "string"},
                     },
-                    "required": ["operation", "language"],
-                },
-            },
+                    required=["operation", "language"],
+                ),
+            ),
         ]
+        return [definition.model_dump(by_alias=True, exclude_none=True) for definition in definitions]
 
     def list_operations(
         self,
@@ -112,7 +106,7 @@ class ToolGenerator:
         normalized_namespace = namespace.strip() if isinstance(namespace, str) else None
         normalized_search = search.lower().strip() if isinstance(search, str) else None
 
-        items: list[dict[str, Any]] = []
+        items: list[OperationDiscoveryItem] = []
         for operation in self.operations:
             if normalized_namespace and operation.namespace != normalized_namespace:
                 continue
@@ -128,17 +122,17 @@ class ToolGenerator:
                 if normalized_search not in content:
                     continue
             items.append(
-                {
-                    "namespace": operation.namespace,
-                    "operation": operation.operation_id,
-                    "method": operation.method,
-                    "path": operation.path,
-                    "summary": operation.summary,
-                }
+                OperationDiscoveryItem(
+                    namespace=operation.namespace,
+                    operation=operation.operation_id,
+                    method=operation.method,
+                    path=operation.path,
+                    summary=operation.summary,
+                )
             )
 
-        items.sort(key=lambda value: (value["namespace"], value["operation"]))
-        return items[offset : offset + limit]
+        items.sort(key=lambda value: (value.namespace, value.operation))
+        return [item.model_dump() for item in items[offset : offset + limit]]
 
     def get_operation_schema(self, operation_id: str) -> dict[str, Any]:
         """Return detailed schema dictionary for an operation id."""
