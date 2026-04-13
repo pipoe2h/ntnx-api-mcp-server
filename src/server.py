@@ -10,6 +10,7 @@ from src.config import Settings
 from src.config.constants import ARTIFACT_FILENAME_SUFFIX
 from src.generators import ToolGenerator
 from src.parsers import OpenAPIParser, OperationInfo
+from src.tools import RuntimeToolDispatcher
 
 
 @dataclass(slots=True)
@@ -94,3 +95,9 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
         discovery_tools=discovery_tools,
         operation_index=operation_index,
     )
+
+
+def build_runtime_dispatcher(settings: Settings) -> RuntimeToolDispatcher:
+    """Build runtime dispatcher using loaded YAML operations."""
+    load_result = load_operations_from_yamls(settings)
+    return RuntimeToolDispatcher(settings=settings, load_result=load_result)
