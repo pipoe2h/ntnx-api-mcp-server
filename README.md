@@ -23,9 +23,9 @@ Configuration inputs are supported in both Python executable and Docker workflow
 2. Config file (`.json`, `.yaml`/`.yml`, `.toml`) via `--config-file`
 3. CLI flags (highest precedence)
 
-### Required keys
+### Required keys (connected mode)
 
-Provide the following values through one of the supported sources:
+Provide the following values when running connected-mode (`init`, `refresh`, or live API execution):
 
 - `PC_HOST`
 - `PC_PORT`
@@ -70,6 +70,7 @@ When multiple sources are used together:
 - Loads YAMLs from runtime `artifacts/` first
 - Falls back to bundled `src/artifacts/default_specs/`
 - Parses GET operations and builds namespace execute tool schemas
+- If `PC_HOST` is not set, runs in artifact-only offline mode (discovery still works; live API execution requires `PC_HOST`)
 
 ## Tool contract
 

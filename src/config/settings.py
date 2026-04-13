@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     )
 
     # Prism Central connection
-    pc_host: str = Field(default="localhost", description="Prism Central host (IP or FQDN)")
+    pc_host: str | None = Field(default=None, description="Prism Central host (IP or FQDN)")
     pc_port: int = Field(default=9440, description="Prism Central API port")
     pc_username: str | None = Field(default=None, description="Prism Central username")
     pc_password: SecretStr | None = Field(default=None, description="Prism Central password")
@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     @property
     def pc_base_url(self) -> str:
         """Base API URL for Prism Central."""
+        if not self.pc_host:
+            raise ValueError("PC_HOST is required to build Prism Central base URL.")
         scheme = "https" if self.pc_port == 9440 else "http"
         return f"{scheme}://{self.pc_host}:{self.pc_port}/api"
 

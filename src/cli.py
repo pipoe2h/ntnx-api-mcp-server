@@ -16,7 +16,7 @@ def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None
     """Persist resolved runtime settings for repeatable local runs."""
     content = "\n".join(
         [
-            f"PC_HOST={settings.pc_host}",
+            f"PC_HOST={settings.pc_host or ''}",
             f"PC_PORT={settings.pc_port}",
             f"PC_USERNAME={settings.pc_username or ''}",
             f"PC_PASSWORD={settings.pc_password.get_secret_value() if settings.pc_password else ''}",
@@ -103,6 +103,18 @@ def main() -> None:
     if command == "init":
         from pull_from_developers_api import download_yamls
 
+        if not settings.pc_host:
+            print(
+                json.dumps(
+                    {
+                        "mode": "init",
+                        "error": "PC_HOST is required for init in connected mode.",
+                    },
+                    indent=2,
+                )
+            )
+            raise SystemExit(1)
+
         summary = download_yamls(settings=settings, refresh=False, force=False)
         _save_config_dotenv(settings)
         print(
@@ -125,6 +137,18 @@ def main() -> None:
 
     if command == "refresh":
         from pull_from_developers_api import download_yamls
+
+        if not settings.pc_host:
+            print(
+                json.dumps(
+                    {
+                        "mode": "refresh",
+                        "error": "PC_HOST is required for refresh in connected mode.",
+                    },
+                    indent=2,
+                )
+            )
+            raise SystemExit(1)
 
         summary = download_yamls(
             settings=settings,
@@ -166,27 +190,43 @@ def main() -> None:
         print(json.dumps(result, indent=2))
         return
 
-    try:
-        readiness = validate_startup_readiness(settings)
-    except StartupValidationError as exc:
-        print(
-            json.dumps(
-                {
-                    "mode": "run",
-                    "startup_ready": False,
-                    "error": str(exc),
-                },
-                indent=2,
+    if settings.pc_host:
+        try:
+            readiness = validate_startup_readiness(settings)
+            startup_ready = readiness.ok
+            startup_mode = "connected"
+            startup_probe_skipped = False
+            startup_warning = None
+        except StartupValidationError as exc:
+            print(
+                json.dumps(
+                    {
+                        "mode": "run",
+                        "startup_ready": False,
+                        "error": str(exc),
+                    },
+                    indent=2,
+                )
             )
+            raise SystemExit(1) from exc
+    else:
+        startup_ready = True
+        startup_mode = "offline_artifact_mode"
+        startup_probe_skipped = True
+        startup_warning = (
+            "PC_HOST is not configured. Running in artifact-only mode; "
+            "API execution calls require a configured Prism Central host."
         )
-        raise SystemExit(1) from exc
 
     load_result = load_operations_from_yamls(settings)
     print(
         json.dumps(
             {
                 "mode": "run",
-                "startup_ready": readiness.ok,
+                "startup_ready": startup_ready,
+                "startup_mode": startup_mode,
+                "startup_probe_skipped": startup_probe_skipped,
+                "startup_warning": startup_warning,
                 "artifacts_source": load_result.artifacts_source,
                 "artifact_directory": str(load_result.artifact_directory),
                 "artifact_files": [str(path) for path in load_result.files],

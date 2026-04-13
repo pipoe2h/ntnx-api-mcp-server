@@ -225,6 +225,11 @@ def download_yamls(
     File naming contract:
     `<namespace>-<version>-all-documentation.yaml`
     """
+    if not settings.pc_host:
+        raise ValueError(
+            "PC_HOST is required for init/refresh because namespace version probing is PC-driven."
+        )
+
     artifacts_dir = settings.artifacts_dir
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
