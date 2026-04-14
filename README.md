@@ -17,6 +17,12 @@ for Nutanix APIs. Delivery is split into incremental pull requests merged into
 
 Configuration inputs are supported in both Python executable and Docker workflows.
 
+### Runtime modes
+
+- **Connected mode**: requires `PC_HOST`; enables `init` / `refresh` and live API execution.
+- **Artifact-only mode**: no `PC_HOST`; allows `run` with local/bundled artifacts for discovery.
+- **Container mode**: same behavior as local mode, with env values injected from orchestrator.
+
 ### Source options
 
 1. Environment / `.env`
@@ -71,6 +77,15 @@ When multiple sources are used together:
 - Falls back to bundled `src/artifacts/default_specs/`
 - Parses GET operations, registers namespace execute tools, and wires progressive discovery dispatch
 - If `PC_HOST` is not set, runs in artifact-only offline mode (discovery still works; live API execution requires `PC_HOST`)
+
+## Container runtime
+
+`docker-compose.yml` is included for production-like local orchestration:
+
+- image build from repository `Dockerfile`
+- mounted artifacts volume at `/app/artifacts`
+- mounted `.env` at `/app/.env`
+- same configuration keys and precedence semantics as CLI mode
 
 ## Tool contract
 
