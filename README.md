@@ -84,6 +84,10 @@ When multiple sources are used together:
 - `getOperationSchema`: on-demand full schema payload for a selected operation
 - `getCodeSample`: language-specific sample retrieval when provided in OpenAPI extensions
 
+## Validation coverage
+
+- Integration tests validate dispatcher tool registration and `listOperations` discovery roundtrips from loaded YAML artifacts.
+
 ## License
 
 Apache 2.0
