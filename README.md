@@ -84,6 +84,12 @@ When multiple sources are used together:
 - `getOperationSchema`: on-demand full schema payload for a selected operation
 - `getCodeSample`: language-specific sample retrieval when provided in OpenAPI extensions
 
+## Observability
+
+- Logging supports `text` and `json` output via `LOG_FORMAT`.
+- Structured events include startup mode, artifact refresh summaries, and per-tool dispatch outcomes.
+- Core CLI operations (`init`, `refresh`, `run`) emit event logs with timing and outcome fields.
+
 ## License
 
 Apache 2.0

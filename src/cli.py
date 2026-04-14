@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from .auth import StartupValidationError, validate_startup_readiness
 from .config import load_settings
 from .server import build_runtime_dispatcher
+from .utils import log_event, setup_logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None:
@@ -97,6 +102,15 @@ def main() -> None:
         config_file=args.config_file,
         overrides=_build_overrides(args),
     )
+    setup_logging(settings.log_level, settings.log_format)
+    log_event(
+        LOGGER,
+        logging.INFO,
+        "cli_started",
+        command=args.command or "run",
+        log_level=settings.log_level,
+        log_format=settings.log_format,
+    )
 
     command = args.command or "run"
 
@@ -116,6 +130,17 @@ def main() -> None:
             raise SystemExit(1)
 
         summary = download_yamls(settings=settings, refresh=False, force=False)
+        log_event(
+            LOGGER,
+            logging.INFO,
+            "init_completed",
+            discovered=summary.discovered,
+            processed=summary.processed,
+            success=summary.success,
+            skipped=summary.skipped,
+            failed=summary.failed,
+            duration_ms=summary.duration_ms,
+        )
         _save_config_dotenv(settings)
         print(
             json.dumps(
@@ -154,6 +179,19 @@ def main() -> None:
             settings=settings,
             refresh=True,
             force=bool(getattr(args, "force", False)),
+        )
+        log_event(
+            LOGGER,
+            logging.INFO,
+            "refresh_completed",
+            discovered=summary.discovered,
+            processed=summary.processed,
+            success=summary.success,
+            skipped=summary.skipped,
+            failed=summary.failed,
+            deleted_artifacts=summary.deleted_artifacts,
+            restored_artifacts=summary.restored_artifacts,
+            duration_ms=summary.duration_ms,
         )
         _save_config_dotenv(settings)
         print(
@@ -221,6 +259,16 @@ def main() -> None:
     dispatcher = build_runtime_dispatcher(settings)
     load_result = dispatcher.load_result
     tools = dispatcher.list_tools()
+    log_event(
+        LOGGER,
+        logging.INFO,
+        "run_started",
+        startup_mode=startup_mode,
+        startup_probe_skipped=startup_probe_skipped,
+        artifacts_source=load_result.artifacts_source,
+        operation_count=len(load_result.operations),
+        registered_tool_count=len(tools),
+    )
     print(
         json.dumps(
             {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 import shutil
 import time
@@ -19,6 +20,10 @@ from src.config.constants import (
     DEVELOPERS_YAML_DOWNLOAD_TEMPLATE,
     PC_NAMESPACE_VERSION_PROBE_TEMPLATE,
 )
+from src.utils import log_event
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -230,6 +235,14 @@ def download_yamls(
             "PC_HOST is required for init/refresh because namespace version probing is PC-driven."
         )
 
+    log_event(
+        LOGGER,
+        logging.INFO,
+        "artifact_download_started",
+        mode="refresh" if refresh else "init",
+        force=force,
+    )
+
     artifacts_dir = settings.artifacts_dir
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
@@ -335,4 +348,18 @@ def download_yamls(
         shutil.rmtree(backup_dir, ignore_errors=True)
 
     summary.duration_ms = int((time.perf_counter() - started) * 1000)
+    log_event(
+        LOGGER,
+        logging.INFO,
+        "artifact_download_completed",
+        mode="refresh" if refresh else "init",
+        discovered=summary.discovered,
+        processed=summary.processed,
+        success=summary.success,
+        skipped=summary.skipped,
+        failed=summary.failed,
+        deleted_artifacts=summary.deleted_artifacts,
+        restored_artifacts=summary.restored_artifacts,
+        duration_ms=summary.duration_ms,
+    )
     return summary

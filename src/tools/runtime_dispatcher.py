@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Any, Protocol
 
 from src.config import Settings
 from src.generators import ToolContractError, ToolGenerator
 from src.handlers import APIHandler
 from src.parsers import OperationInfo
+from src.utils import log_event
 
 
 ODATA_ALIAS_MAP = {
@@ -19,6 +21,8 @@ ODATA_ALIAS_MAP = {
     "_select": "$select",
     "_expand": "$expand",
 }
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -64,19 +68,30 @@ class RuntimeToolDispatcher:
         """Dispatch a single tool call."""
         args = dict(arguments or {})
         if name == "listOperations":
-            return self._handle_list_operations(args)
-        if name == "getOperationSchema":
-            return self._handle_get_operation_schema(args)
-        if name == "getCodeSample":
-            return self._handle_get_code_sample(args)
-        if name.endswith("_execute"):
+            result = self._handle_list_operations(args)
+        elif name == "getOperationSchema":
+            result = self._handle_get_operation_schema(args)
+        elif name == "getCodeSample":
+            result = self._handle_get_code_sample(args)
+        elif name.endswith("_execute"):
             namespace = name[: -len("_execute")]
-            return self._handle_namespace_execute(namespace, args)
-        return ToolDispatchResult(
-            ok=False,
+            result = self._handle_namespace_execute(namespace, args)
+        else:
+            result = ToolDispatchResult(
+                ok=False,
+                tool=name,
+                error={"code": "unknown_tool", "detail": f"Tool '{name}' is not registered."},
+            )
+
+        log_event(
+            LOGGER,
+            logging.INFO,
+            "tool_call_dispatched",
             tool=name,
-            error={"code": "unknown_tool", "detail": f"Tool '{name}' is not registered."},
+            ok=result.ok,
+            error_code=(result.error or {}).get("code"),
         )
+        return result
 
     def _handle_list_operations(self, args: dict[str, Any]) -> ToolDispatchResult:
         limit = int(args.get("limit", 100))
