@@ -23,9 +23,9 @@ Configuration inputs are supported in both Python executable and Docker workflow
 2. Config file (`.json`, `.yaml`/`.yml`, `.toml`) via `--config-file`
 3. CLI flags (highest precedence)
 
-### Required keys
+### Required keys (connected mode)
 
-Provide the following values through one of the supported sources:
+Provide the following values when running connected-mode (`init`, `refresh`, or live API execution):
 
 - `PC_HOST`
 - `PC_PORT`
@@ -56,8 +56,12 @@ When multiple sources are used together:
 
 ### `nutanix-mcp refresh`
 
-- Clears existing `*-all-documentation.yaml` files from artifacts directory
-- Re-runs the same namespace/version download flow
+- Runs refresh with backup/restore safety:
+  - stages existing `*-all-documentation.yaml` artifacts into a temporary backup
+  - downloads refreshed artifacts per namespace/version
+  - restores previous artifacts for namespaces that could not be refreshed
+  - restores all previous artifacts if refresh has zero successful downloads
+- Emits refresh metrics (discovered/processed/success/skipped/failed, deleted/restored counts, duration)
 
 ### `nutanix-mcp run`
 
@@ -66,6 +70,7 @@ When multiple sources are used together:
 - Loads YAMLs from runtime `artifacts/` first
 - Falls back to bundled `src/artifacts/default_specs/`
 - Parses GET operations, registers namespace execute tools, and wires progressive discovery dispatch
+- If `PC_HOST` is not set, runs in artifact-only offline mode (discovery still works; live API execution requires `PC_HOST`)
 
 ## Tool contract
 

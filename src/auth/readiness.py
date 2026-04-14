@@ -61,6 +61,11 @@ def _probe_pc(settings: Settings) -> httpx.Response:
 
 def validate_startup_readiness(settings: Settings) -> StartupReadinessResult:
     """Validate startup readiness before serving tool operations."""
+    if not settings.pc_host:
+        raise StartupValidationError(
+            "PC_HOST is not configured. Connected-mode startup readiness probe cannot run."
+        )
+
     try:
         response = _probe_pc(settings)
     except httpx.ConnectTimeout as exc:
