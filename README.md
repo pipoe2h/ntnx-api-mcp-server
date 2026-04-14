@@ -65,7 +65,7 @@ When multiple sources are used together:
 - Fails fast on auth, TLS, connectivity, or endpoint probe failures
 - Loads YAMLs from runtime `artifacts/` first
 - Falls back to bundled `src/artifacts/default_specs/`
-- Parses GET operations and builds namespace execute tool schemas
+- Parses GET operations, registers namespace execute tools, and wires progressive discovery dispatch
 
 ## Tool contract
 
