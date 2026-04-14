@@ -9,7 +9,7 @@ from typing import Any
 
 from .auth import StartupValidationError, validate_startup_readiness
 from .config import load_settings
-from .server import load_operations_from_yamls
+from .server import build_runtime_dispatcher
 
 
 def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None:
@@ -218,7 +218,9 @@ def main() -> None:
             "API execution calls require a configured Prism Central host."
         )
 
-    load_result = load_operations_from_yamls(settings)
+    dispatcher = build_runtime_dispatcher(settings)
+    load_result = dispatcher.load_result
+    tools = dispatcher.list_tools()
     print(
         json.dumps(
             {
@@ -233,6 +235,7 @@ def main() -> None:
                 "operation_count": len(load_result.operations),
                 "namespace_tool_count": len(load_result.namespace_tools),
                 "discovery_tool_count": len(load_result.discovery_tools),
+                "registered_tool_count": len(tools),
             },
             indent=2,
         )
