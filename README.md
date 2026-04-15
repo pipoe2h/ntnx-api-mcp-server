@@ -99,10 +99,15 @@ When multiple sources are used together:
 - `getOperationSchema`: on-demand full schema payload for a selected operation
 - `getCodeSample`: language-specific sample retrieval when provided in OpenAPI extensions
 
-- Functional smoke tests validate CLI mode behavior (`init` connected-mode requirement, offline `run` mode startup).
+## Observability
+
+- Logging supports `text` and `json` output via `LOG_FORMAT`.
+- Startup, refresh, and dispatch telemetry is emitted through Python standard `logging`.
+- Core CLI operations (`init`, `refresh`, `run`) emit event-style log messages with timing and outcome fields.
 
 ## Validation coverage
 
+- Functional smoke tests validate CLI mode behavior (`init` connected-mode requirement, offline `run` mode startup).
 - Integration tests validate dispatcher tool registration and `listOperations` discovery roundtrips from loaded YAML artifacts.
 
 ## License

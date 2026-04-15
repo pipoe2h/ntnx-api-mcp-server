@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from .auth import StartupValidationError, validate_startup_readiness
 from .config import load_settings
 from .server import build_runtime_dispatcher
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None:
@@ -88,6 +92,19 @@ def _build_overrides(args: argparse.Namespace) -> dict[str, Any]:
     return overrides
 
 
+def _configure_logging(log_level: str, log_format: str) -> None:
+    """Configure standard-library logging handlers for CLI/runtime."""
+    level = getattr(logging, log_level.upper(), logging.INFO)
+    if log_format == "json":
+        formatter = (
+            '{"timestamp":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s",'
+            '"message":"%(message)s"}'
+        )
+    else:
+        formatter = "%(asctime)s %(levelname)s %(name)s %(message)s"
+    logging.basicConfig(level=level, format=formatter, force=True)
+
+
 def main() -> None:
     """CLI entrypoint."""
     parser = _build_parser()
@@ -96,6 +113,13 @@ def main() -> None:
     settings = load_settings(
         config_file=args.config_file,
         overrides=_build_overrides(args),
+    )
+    _configure_logging(settings.log_level, settings.log_format)
+    LOGGER.info(
+        "event=cli_started command=%s log_level=%s log_format=%s",
+        args.command or "run",
+        settings.log_level,
+        settings.log_format,
     )
 
     command = args.command or "run"
@@ -116,6 +140,15 @@ def main() -> None:
             raise SystemExit(1)
 
         summary = download_yamls(settings=settings, refresh=False, force=False)
+        LOGGER.info(
+            "event=init_completed discovered=%s processed=%s success=%s skipped=%s failed=%s duration_ms=%s",
+            summary.discovered,
+            summary.processed,
+            summary.success,
+            summary.skipped,
+            summary.failed,
+            summary.duration_ms,
+        )
         _save_config_dotenv(settings)
         print(
             json.dumps(
@@ -154,6 +187,17 @@ def main() -> None:
             settings=settings,
             refresh=True,
             force=bool(getattr(args, "force", False)),
+        )
+        LOGGER.info(
+            "event=refresh_completed discovered=%s processed=%s success=%s skipped=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
+            summary.discovered,
+            summary.processed,
+            summary.success,
+            summary.skipped,
+            summary.failed,
+            summary.deleted_artifacts,
+            summary.restored_artifacts,
+            summary.duration_ms,
         )
         _save_config_dotenv(settings)
         print(
@@ -221,6 +265,14 @@ def main() -> None:
     dispatcher = build_runtime_dispatcher(settings)
     load_result = dispatcher.load_result
     tools = dispatcher.list_tools()
+    LOGGER.info(
+        "event=run_started startup_mode=%s startup_probe_skipped=%s artifacts_source=%s operation_count=%s registered_tool_count=%s",
+        startup_mode,
+        startup_probe_skipped,
+        load_result.artifacts_source,
+        len(load_result.operations),
+        len(tools),
+    )
     print(
         json.dumps(
             {
