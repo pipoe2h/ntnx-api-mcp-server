@@ -66,21 +66,22 @@ class RuntimeToolDispatcher:
     def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> ToolDispatchResult:
         """Dispatch a single tool call."""
         args = dict(arguments or {})
-        if name == "listOperations":
-            result = self._handle_list_operations(args)
-        elif name == "getOperationSchema":
-            result = self._handle_get_operation_schema(args)
-        elif name == "getCodeSample":
-            result = self._handle_get_code_sample(args)
-        elif name.endswith("_execute"):
-            namespace = name[: -len("_execute")]
-            result = self._handle_namespace_execute(namespace, args)
-        else:
-            result = ToolDispatchResult(
-                ok=False,
-                tool=name,
-                error={"code": "unknown_tool", "detail": f"Tool '{name}' is not registered."},
-            )
+        match name:
+            case "listOperations":
+                result = self._handle_list_operations(args)
+            case "getOperationSchema":
+                result = self._handle_get_operation_schema(args)
+            case "getCodeSample":
+                result = self._handle_get_code_sample(args)
+            case _ if name.endswith("_execute"):
+                namespace = name[: -len("_execute")]
+                result = self._handle_namespace_execute(namespace, args)
+            case _:
+                result = ToolDispatchResult(
+                    ok=False,
+                    tool=name,
+                    error={"code": "unknown_tool", "detail": f"Tool '{name}' is not registered."},
+                )
 
         LOGGER.info(
             "event=tool_call_dispatched tool=%s ok=%s error_code=%s",
