@@ -10,7 +10,6 @@ from src.config import Settings
 from src.generators import ToolContractError, ToolGenerator
 from src.handlers import APIHandler
 from src.parsers import OperationInfo
-from src.utils import log_event
 
 
 ODATA_ALIAS_MAP = {
@@ -83,13 +82,11 @@ class RuntimeToolDispatcher:
                 error={"code": "unknown_tool", "detail": f"Tool '{name}' is not registered."},
             )
 
-        log_event(
-            LOGGER,
-            logging.INFO,
-            "tool_call_dispatched",
-            tool=name,
-            ok=result.ok,
-            error_code=(result.error or {}).get("code"),
+        LOGGER.info(
+            "event=tool_call_dispatched tool=%s ok=%s error_code=%s",
+            name,
+            result.ok,
+            (result.error or {}).get("code"),
         )
         return result
 

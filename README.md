@@ -17,6 +17,12 @@ for Nutanix APIs. Delivery is split into incremental pull requests merged into
 
 Configuration inputs are supported in both Python executable and Docker workflows.
 
+### Runtime modes
+
+- **Connected mode**: requires `PC_HOST`; enables `init` / `refresh` and live API execution.
+- **Artifact-only mode**: no `PC_HOST`; allows `run` with local/bundled artifacts for discovery.
+- **Container mode**: same behavior as local mode, with env values injected from orchestrator.
+
 ### Source options
 
 1. Environment / `.env`
@@ -72,6 +78,15 @@ When multiple sources are used together:
 - Parses GET operations, registers namespace execute tools, and wires progressive discovery dispatch
 - If `PC_HOST` is not set, runs in artifact-only offline mode (discovery still works; live API execution requires `PC_HOST`)
 
+## Container runtime
+
+`docker-compose.yml` is included for production-like local orchestration:
+
+- image build from repository `Dockerfile`
+- mounted artifacts volume at `/app/artifacts`
+- mounted `.env` at `/app/.env`
+- same configuration keys and precedence semantics as CLI mode
+
 ## Tool contract
 
 - Runtime exposes namespace execution tools in the form `<namespace>_execute`
@@ -87,8 +102,13 @@ When multiple sources are used together:
 ## Observability
 
 - Logging supports `text` and `json` output via `LOG_FORMAT`.
-- Structured events include startup mode, artifact refresh summaries, and per-tool dispatch outcomes.
-- Core CLI operations (`init`, `refresh`, `run`) emit event logs with timing and outcome fields.
+- Startup, refresh, and dispatch telemetry is emitted through Python standard `logging`.
+- Core CLI operations (`init`, `refresh`, `run`) emit event-style log messages with timing and outcome fields.
+
+## Validation coverage
+
+- Functional smoke tests validate CLI mode behavior (`init` connected-mode requirement, offline `run` mode startup).
+- Integration tests validate dispatcher tool registration and `listOperations` discovery roundtrips from loaded YAML artifacts.
 
 ## License
 
