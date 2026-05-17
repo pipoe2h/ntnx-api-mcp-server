@@ -15,6 +15,11 @@ DEVELOPERS_YAML_DOWNLOAD_TEMPLATE = (
     "{namespace}/versions/{version}/yaml"
 )
 
+# Namespace version listing endpoint used for latest-release artifact mode.
+DEVELOPERS_NAMESPACE_VERSIONS_TEMPLATE = (
+    "https://developers.nutanix.com/api/v1/namespaces/{namespace}/versions"
+)
+
 # Prism Central namespace version probe endpoint pattern.
 PC_NAMESPACE_VERSION_PROBE_TEMPLATE = "https://{pc_host}:{pc_port}/api/{namespace}/unversioned/info"
 
