@@ -102,6 +102,14 @@ class ToolGenerator:
                     required=["operation", "language"],
                 ),
             ),
+            ToolDefinition(
+                name="getOperationPermissions",
+                description="Get required roles/permissions metadata for a specific operation id.",
+                inputSchema=ToolInputSchema(
+                    properties={"operation": {"type": "string"}},
+                    required=["operation"],
+                ),
+            ),
         ]
         return [definition.model_dump(by_alias=True, exclude_none=True) for definition in definitions]
 
@@ -138,6 +146,8 @@ class ToolGenerator:
                     method=operation.method,
                     path=operation.path,
                     summary=operation.summary,
+                    permission_name=self._extract_permission_name(operation.permissions),
+                    required_roles=operation.required_roles,
                 )
             )
 
@@ -159,6 +169,34 @@ class ToolGenerator:
             sample_language = sample.get("lang") or sample.get("language")
             if isinstance(sample_language, str) and sample_language.lower() == requested:
                 return sample
+        return None
+
+    def get_operation_permissions(self, operation_id: str) -> dict[str, Any]:
+        """Return permission metadata and required roles for an operation id."""
+        schema = self.get_operation_schema(operation_id)
+        permissions = schema.get("permissions")
+        permission_name = (
+            permissions.get("operationName")
+            if isinstance(permissions, dict) and isinstance(permissions.get("operationName"), str)
+            else None
+        )
+        return {
+            "operation": schema["operation_id"],
+            "namespace": schema["namespace"],
+            "method": schema["method"],
+            "path": schema["path"],
+            "permission_name": permission_name,
+            "required_roles": schema.get("required_roles", []),
+            "raw_permissions": permissions,
+        }
+
+    @staticmethod
+    def _extract_permission_name(permissions: dict[str, Any] | None) -> str | None:
+        if permissions is None:
+            return None
+        operation_name = permissions.get("operationName")
+        if isinstance(operation_name, str) and operation_name.strip():
+            return operation_name.strip()
         return None
 
     def validate_namespace_operation_request(

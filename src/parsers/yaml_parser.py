@@ -34,6 +34,8 @@ class OperationInfo:
     parameters: list[ParameterInfo] = field(default_factory=list)
     code_samples: list[dict[str, Any]] = field(default_factory=list)
     request_body: dict[str, Any] | None = None
+    permissions: dict[str, Any] | None = None
+    required_roles: list[str] = field(default_factory=list)
 
 
 class OpenAPIParser:
@@ -99,6 +101,10 @@ class OpenAPIParser:
         if not isinstance(request_body, dict):
             request_body = None
 
+        permissions_value = op_item.get("x-permissions")
+        permissions = permissions_value if isinstance(permissions_value, dict) else None
+        required_roles = self._extract_required_roles(permissions)
+
         return OperationInfo(
             namespace=namespace,
             operation_id=operation_id,
@@ -110,6 +116,8 @@ class OpenAPIParser:
             parameters=parameters,
             code_samples=[sample for sample in code_samples if isinstance(sample, dict)],
             request_body=request_body,
+            permissions=permissions,
+            required_roles=required_roles,
         )
 
     def _extract_parameters(
@@ -170,3 +178,21 @@ class OpenAPIParser:
                 return None
             target = target.get(token)
         return target if isinstance(target, dict) else None
+
+    @staticmethod
+    def _extract_required_roles(permissions: dict[str, Any] | None) -> list[str]:
+        """Extract role names from x-permissions.roleList metadata."""
+        if permissions is None:
+            return []
+        role_list = permissions.get("roleList")
+        if not isinstance(role_list, list):
+            return []
+        roles: list[str] = []
+        for entry in role_list:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if isinstance(name, str) and name.strip():
+                roles.append(name.strip())
+        # Keep ordering stable while removing duplicates.
+        return list(dict.fromkeys(roles))

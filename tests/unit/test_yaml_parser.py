@@ -21,6 +21,11 @@ paths:
     get:
       operationId: getVmById
       summary: Get VM
+      x-permissions:
+        operationName: View VM
+        roleList:
+          - name: Prism Viewer
+          - name: Prism Admin
       parameters:
         - name: includeStats
           in: query
@@ -42,3 +47,6 @@ paths:
     assert operation.method == "GET"
     assert operation.path == "/vms/{vmId}"
     assert {parameter.name for parameter in operation.parameters} == {"vmId", "includeStats"}
+    assert operation.permissions is not None
+    assert operation.permissions.get("operationName") == "View VM"
+    assert operation.required_roles == ["Prism Viewer", "Prism Admin"]
