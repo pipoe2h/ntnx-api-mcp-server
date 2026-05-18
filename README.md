@@ -2,7 +2,63 @@
 
 Nutanix V4 API MCP server for local stdio clients such as Cursor, Claude, and MCP Inspector.
 
-## Requirements
+## Start Here 
+
+If this is your first MCP setup, follow only these 5 steps:
+
+1. Install the project (`python3 -m venv .venv`, `pip install -e .`)
+2. Fill `.env` with Prism host + credentials
+3. Run `nutanix-mcp init`
+4. Configure Cursor MCP to run `.venv/bin/nutanix-mcp serve-stdio`
+5. Ask Cursor: "Show operations in prism namespace"
+
+If step 5 works, your setup is complete.
+
+## What MCP Means (Simple)
+
+MCP is a standard way for AI tools to call external tools safely.
+
+In this project:
+
+- this server exposes Nutanix APIs as MCP tools,
+- your AI client (Cursor/Claude/etc.) can call those tools,
+- Prism Central is the backend where API calls run.
+
+## Who this is for
+
+Use this server if you want an AI client (for example Cursor) to:
+
+- discover Nutanix V4 APIs safely,
+- tell you required roles/permissions for operations,
+- execute Nutanix APIs directly through MCP tools.
+
+## What the server exposes
+
+### Discovery tools
+
+- `listOperations`
+- `getOperationSchema`
+- `getCodeSample`
+- `getOperationPermissions`
+
+### Namespace execution tools
+
+- `<namespace>_execute` (for example `prism_execute`, `networking_execute`)
+- supports `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
+- supports optional `request_body` for body-based operations
+
+## Authentication support
+
+Both Nutanix portal auth schemes are supported:
+
+- `basicAuthScheme` (HTTP basic) using `PC_USERNAME` + `PC_PASSWORD`
+- `apiKeyAuthScheme` using `PC_API_KEY` 
+
+You can configure either one, or both together.
+
+## Before you start
+
+### Requirements
 
 - Python 3.11+
 - Prism Central access for live API execution (`PC_HOST`, credentials)
