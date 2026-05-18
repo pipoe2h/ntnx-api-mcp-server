@@ -100,7 +100,17 @@ class Settings(BaseSettings):
         if self.log_dir is None:
             self.log_dir = self.project_root / "logs"
 
-        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError as exc:
+            # Migration guardrail: old container-style /app paths should not block local startup.
+            if str(self.artifacts_dir).startswith("/app/"):
+                self.artifacts_dir = self.project_root / "artifacts"
+                self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                raise ValueError(
+                    f"Artifacts directory is not writable: {self.artifacts_dir}"
+                ) from exc
         if not self.default_artifacts_dir.exists():
             self.default_artifacts_dir.mkdir(parents=True, exist_ok=True)
         self.log_dir.mkdir(parents=True, exist_ok=True)

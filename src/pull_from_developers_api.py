@@ -1,4 +1,4 @@
-"""PC-version-driven YAML fetcher from developers endpoints."""
+"""Artifact fetcher for PC-compatible and latest-release modes."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from src.auth import build_basic_auth
 from src.config import Settings
 from src.config.constants import (
     ARTIFACT_FILENAME_SUFFIX,
+    DEVELOPERS_NAMESPACE_VERSIONS_TEMPLATE,
     DEVELOPERS_YAML_DOWNLOAD_TEMPLATE,
     PC_NAMESPACE_VERSION_PROBE_TEMPLATE,
 )
@@ -37,6 +38,7 @@ class DownloadSummary:
     deleted_artifacts: int = 0
     restored_artifacts: int = 0
     duration_ms: int = 0
+    artifact_mode: str = "pc_compatible"
     skipped_reasons: dict[str, int] | None = None
     failed_reasons: dict[str, int] | None = None
     namespace_results: list[dict[str, Any]] | None = None
@@ -83,15 +85,20 @@ def get_namespaces(settings: Settings) -> list[str]:
     if settings.namespace_overrides:
         return settings.namespace_overrides
 
-    with httpx.Client(timeout=settings.startup_timeout_seconds) as client:
+    with httpx.Client(timeout=settings.startup_timeout_seconds, follow_redirects=True) as client:
         response = client.get(settings.namespace_source_url)
     response.raise_for_status()
 
     payload = response.json()
     if isinstance(payload, list):
         values = payload
-    elif isinstance(payload, dict) and isinstance(payload.get("data"), list):
-        values = payload["data"]
+    elif isinstance(payload, dict):
+        if isinstance(payload.get("data"), list):
+            values = payload["data"]
+        elif isinstance(payload.get("namespaces"), list):
+            values = payload["namespaces"]
+        else:
+            values = []
     else:
         values = []
 
@@ -153,6 +160,45 @@ def get_namespace_version(settings: Settings, namespace: str) -> str | None:
     if response.is_error:
         response.raise_for_status()
     return _extract_version(response)
+
+
+@retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), reraise=True)
+def get_latest_release_version(settings: Settings, namespace: str) -> str | None:
+    """Fetch latest available namespace release version from developers endpoint."""
+    url = DEVELOPERS_NAMESPACE_VERSIONS_TEMPLATE.format(namespace=namespace)
+    with httpx.Client(timeout=settings.startup_timeout_seconds, follow_redirects=True) as client:
+        response = client.get(url)
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    versions = payload.get("versions")
+    if not isinstance(versions, list):
+        return None
+    candidates: list[str] = []
+    for item in versions:
+        if not isinstance(item, dict):
+            continue
+        value = item.get("version")
+        if isinstance(value, str) and value.strip():
+            candidates.append(value.strip())
+    if not candidates:
+        return None
+    return _pick_latest_version(candidates)
+
+
+def _pick_latest_version(versions: list[str]) -> str:
+    """Pick latest version using numeric sort with stable fallback."""
+    def sort_key(version: str) -> tuple[int, ...]:
+        clean = version.lstrip("vV")
+        parts = clean.split(".")
+        values: list[int] = []
+        for part in parts:
+            digits = "".join(ch for ch in part if ch.isdigit())
+            values.append(int(digits) if digits else 0)
+        return tuple(values)
+
+    return sorted(versions, key=sort_key, reverse=True)[0]
 
 
 @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), reraise=True)
@@ -229,14 +275,12 @@ def download_yamls(
     File naming contract:
     `<namespace>-<version>-all-documentation.yaml`
     """
-    if not settings.pc_host:
-        raise ValueError(
-            "PC_HOST is required for init/refresh because namespace version probing is PC-driven."
-        )
+    artifact_mode = "pc_compatible" if settings.pc_host else "latest_release"
 
     LOGGER.info(
-        "event=artifact_download_started mode=%s force=%s",
+        "event=artifact_download_started mode=%s artifact_mode=%s force=%s",
         "refresh" if refresh else "init",
+        artifact_mode,
         force,
     )
 
@@ -250,6 +294,7 @@ def download_yamls(
         backup_dir, backup_files = _prepare_refresh_backup(artifacts_dir)
 
     summary = DownloadSummary()
+    summary.artifact_mode = artifact_mode
     namespaces = get_namespaces(settings)
     summary.discovered = len(namespaces)
     processed_namespaces: set[str] = set()
@@ -257,7 +302,10 @@ def download_yamls(
         namespace_started = time.perf_counter()
         summary.processed += 1
         try:
-            version = get_namespace_version(settings, namespace)
+            if settings.pc_host:
+                version = get_namespace_version(settings, namespace)
+            else:
+                version = get_latest_release_version(settings, namespace)
             if not version:
                 summary.add_skipped("missing_version_or_namespace")
                 summary.add_namespace_result(
@@ -346,8 +394,9 @@ def download_yamls(
 
     summary.duration_ms = int((time.perf_counter() - started) * 1000)
     LOGGER.info(
-        "event=artifact_download_completed mode=%s discovered=%s processed=%s success=%s skipped=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
+        "event=artifact_download_completed mode=%s artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
         "refresh" if refresh else "init",
+        artifact_mode,
         summary.discovered,
         summary.processed,
         summary.success,
