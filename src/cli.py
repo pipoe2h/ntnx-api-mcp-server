@@ -10,6 +10,7 @@ from typing import Any
 
 from .auth import StartupValidationError, validate_startup_readiness
 from .config import load_settings
+from .mcp_stdio_server import serve_stdio
 from .server import build_runtime_dispatcher
 
 
@@ -66,6 +67,10 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Run server startup YAML loading flow",
     )
     run_parser.add_argument("--validate-only", action="store_true")
+    subparsers.add_parser(
+        "serve-stdio",
+        help="Run MCP stdio server for Cursor/Claude/Inspector clients",
+    )
     return parser
 
 
@@ -125,23 +130,12 @@ def main() -> None:
     command = args.command or "run"
 
     if command == "init":
-        from pull_from_developers_api import download_yamls
-
-        if not settings.pc_host:
-            print(
-                json.dumps(
-                    {
-                        "mode": "init",
-                        "error": "PC_HOST is required for init in connected mode.",
-                    },
-                    indent=2,
-                )
-            )
-            raise SystemExit(1)
+        from .pull_from_developers_api import download_yamls
 
         summary = download_yamls(settings=settings, refresh=False, force=False)
         LOGGER.info(
-            "event=init_completed discovered=%s processed=%s success=%s skipped=%s failed=%s duration_ms=%s",
+            "event=init_completed artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s failed=%s duration_ms=%s",
+            summary.artifact_mode,
             summary.discovered,
             summary.processed,
             summary.success,
@@ -154,6 +148,7 @@ def main() -> None:
             json.dumps(
                 {
                     "mode": "init",
+                    "artifact_mode": summary.artifact_mode,
                     "discovered": summary.discovered,
                     "processed": summary.processed,
                     "success": summary.success,
@@ -169,19 +164,7 @@ def main() -> None:
         return
 
     if command == "refresh":
-        from pull_from_developers_api import download_yamls
-
-        if not settings.pc_host:
-            print(
-                json.dumps(
-                    {
-                        "mode": "refresh",
-                        "error": "PC_HOST is required for refresh in connected mode.",
-                    },
-                    indent=2,
-                )
-            )
-            raise SystemExit(1)
+        from .pull_from_developers_api import download_yamls
 
         summary = download_yamls(
             settings=settings,
@@ -189,7 +172,8 @@ def main() -> None:
             force=bool(getattr(args, "force", False)),
         )
         LOGGER.info(
-            "event=refresh_completed discovered=%s processed=%s success=%s skipped=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
+            "event=refresh_completed artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
+            summary.artifact_mode,
             summary.discovered,
             summary.processed,
             summary.success,
@@ -204,6 +188,7 @@ def main() -> None:
             json.dumps(
                 {
                     "mode": "refresh",
+                    "artifact_mode": summary.artifact_mode,
                     "discovered": summary.discovered,
                     "processed": summary.processed,
                     "success": summary.success,
@@ -220,7 +205,12 @@ def main() -> None:
         )
         return
 
+    if command == "serve-stdio":
+        serve_stdio(settings)
+        return
+
     if bool(getattr(args, "validate_only", False)):
+        artifact_mode = "pc_compatible" if settings.pc_host else "latest_release"
         result = {
             "pc_host": settings.pc_host,
             "pc_port": settings.pc_port,
@@ -230,6 +220,7 @@ def main() -> None:
             "log_format": settings.log_format,
             "artifacts_dir": str(settings.artifacts_dir),
             "default_artifacts_dir": str(settings.default_artifacts_dir),
+            "artifact_mode": artifact_mode,
         }
         print(json.dumps(result, indent=2))
         return
@@ -238,7 +229,7 @@ def main() -> None:
         try:
             readiness = validate_startup_readiness(settings)
             startup_ready = readiness.ok
-            startup_mode = "connected"
+            startup_mode = "pc_compatible"
             startup_probe_skipped = False
             startup_warning = None
         except StartupValidationError as exc:
@@ -255,10 +246,10 @@ def main() -> None:
             raise SystemExit(1) from exc
     else:
         startup_ready = True
-        startup_mode = "offline_artifact_mode"
+        startup_mode = "latest_release"
         startup_probe_skipped = True
         startup_warning = (
-            "PC_HOST is not configured. Running in artifact-only mode; "
+            "PC_HOST is not configured. Running with latest-release artifacts; "
             "API execution calls require a configured Prism Central host."
         )
 
@@ -292,3 +283,7 @@ def main() -> None:
             indent=2,
         )
     )
+
+
+if __name__ == "__main__":
+    main()

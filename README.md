@@ -1,115 +1,110 @@
 # ntnx-api-mcp-server
 
-Nutanix API MCP server that exposes Nutanix v4 APIs as Model Context Protocol tools.
-
-## Scope
-
-This repository contains the production implementation of a read-first MCP server
-for Nutanix APIs. Delivery is split into incremental pull requests merged into
-`main`.
+Nutanix V4 API MCP server for local stdio clients such as Cursor, Claude, and MCP Inspector.
 
 ## Requirements
 
 - Python 3.11+
-- Access to Nutanix Prism Central for connected mode
+- Prism Central access for live API execution (`PC_HOST`, credentials)
 
-## Runtime configuration
+## Runtime Model
 
-Configuration inputs are supported in both Python executable and Docker workflows.
+This server is distributed as a local Python package and used through stdio.
 
-### Runtime modes
+- `init` / `refresh` download API YAML artifacts into `artifacts/`
+- `serve-stdio` starts the MCP runtime for agent clients
+- `run` provides startup validation and artifact summary checks
 
-- **Connected mode**: requires `PC_HOST`; enables `init` / `refresh` and live API execution.
-- **Artifact-only mode**: no `PC_HOST`; allows `run` with local/bundled artifacts for discovery.
-- **Container mode**: same behavior as local mode, with env values injected from orchestrator.
+### Artifact Modes
 
-### Source options
+- `pc_compatible`: `PC_HOST` is configured; namespace versions are probed from Prism Central.
+- `latest_release`: `PC_HOST` is not configured; latest namespace versions are pulled from developers endpoints.
+
+## Configuration
+
+Settings are loaded in this precedence order:
 
 1. Environment / `.env`
-2. Config file (`.json`, `.yaml`/`.yml`, `.toml`) via `--config-file`
-3. CLI flags (highest precedence)
-
-### Required keys (connected mode)
-
-Provide the following values when running connected-mode (`init`, `refresh`, or live API execution):
-
-- `PC_HOST`
-- `PC_PORT`
-- `PC_USERNAME`
-- `PC_PASSWORD`
-- `PC_INSECURE` (optional, default: `true`)
-- `ARTIFACTS_DIR` (optional, default: `./artifacts`)
-- `LOG_LEVEL` (optional, default: `INFO`)
-- `LOG_FORMAT` (optional: `text` or `json`)
-- `NAMESPACE_SOURCE_URL` (optional, default: Nutanix developers namespaces API)
-- `NAMESPACE_OVERRIDE_LIST` (optional comma-separated list)
-
-### Precedence
-
-When multiple sources are used together:
-
-1. `.env` and process environment
-2. Config file (`--config-file`)
+2. Config file via `--config-file` (`.json`, `.yaml/.yml`, `.toml`)
 3. CLI flags
+
+Common keys:
+
+- `PC_HOST`, `PC_PORT`, `PC_USERNAME`, `PC_PASSWORD`, `PC_INSECURE`
+- `ARTIFACTS_DIR`
+- `LOG_LEVEL`, `LOG_FORMAT`
+- `NAMESPACE_SOURCE_URL`, `NAMESPACE_OVERRIDE_LIST`
 
 ## Commands
 
 ### `nutanix-mcp init`
 
-- Discovers namespaces from developers API (or override list)
-- Probes namespace version from target Prism Central
-- Downloads YAML artifacts as `<namespace>-<version>-all-documentation.yaml`
+Downloads artifacts for discovered namespaces and writes a summary JSON payload.
 
-### `nutanix-mcp refresh`
+### `nutanix-mcp refresh --force`
 
-- Runs refresh with backup/restore safety:
-  - stages existing `*-all-documentation.yaml` artifacts into a temporary backup
-  - downloads refreshed artifacts per namespace/version
-  - restores previous artifacts for namespaces that could not be refreshed
-  - restores all previous artifacts if refresh has zero successful downloads
-- Emits refresh metrics (discovered/processed/success/skipped/failed, deleted/restored counts, duration)
+Refreshes artifacts with backup/restore behavior to avoid breaking existing local discovery.
 
-### `nutanix-mcp run`
+### `nutanix-mcp run [--validate-only]`
 
-- Performs startup readiness validation against Prism Central before loading tools
-- Fails fast on auth, TLS, connectivity, or endpoint probe failures
-- Loads YAMLs from runtime `artifacts/` first
-- Falls back to bundled `src/artifacts/default_specs/`
-- Parses GET operations, registers namespace execute tools, and wires progressive discovery dispatch
-- If `PC_HOST` is not set, runs in artifact-only offline mode (discovery still works; live API execution requires `PC_HOST`)
+Performs startup checks and reports artifact loading state.
 
-## Container runtime
+### `nutanix-mcp serve-stdio`
 
-`docker-compose.yml` is included for production-like local orchestration:
+Runs the long-lived MCP stdio server. Use this command in MCP client configuration.
 
-- image build from repository `Dockerfile`
-- mounted artifacts volume at `/app/artifacts`
-- mounted `.env` at `/app/.env`
-- same configuration keys and precedence semantics as CLI mode
+## Local Quick Start
 
-## Tool contract
+1. Create and activate a virtual environment:
+   - `python3 -m venv .venv`
+   - `source .venv/bin/activate`
+2. Install package in editable mode:
+   - `pip install -e .`
+3. Prepare `.env` (with or without `PC_HOST`).
+4. Download artifacts:
+   - `nutanix-mcp init`
+5. Optionally verify startup mode:
+   - `nutanix-mcp run --validate-only`
+6. Start server:
+   - `nutanix-mcp serve-stdio`
 
-- Runtime exposes namespace execution tools in the form `<namespace>_execute`
-- Each namespace tool uses a compact description and an explicit `operation` selector
-- Operation and request field validation is deterministic (no fuzzy server-side matching)
+## MCP Client Example
 
-## Progressive discovery helpers
+Use your local virtual environment command and pass `serve-stdio`:
 
-- `listOperations`: lightweight operation catalog with namespace/search filters
-- `getOperationSchema`: on-demand full schema payload for a selected operation
-- `getCodeSample`: language-specific sample retrieval when provided in OpenAPI extensions
+```json
+{
+  "mcpServers": {
+    "nutanix-v4-mcp": {
+      "command": "/absolute/path/to/repo/.venv/bin/nutanix-mcp",
+      "args": [
+        "serve-stdio"
+      ],
+      "env": {
+        "PC_HOST": "10.10.10.10",
+        "PC_PORT": "9440",
+        "PC_USERNAME": "admin",
+        "PC_PASSWORD": "********",
+        "PC_INSECURE": "true",
+        "ARTIFACTS_DIR": "/absolute/path/to/repo/artifacts"
+      }
+    }
+  }
+}
+```
 
-## Observability
+## Discovery and Execution Tools
 
-- Logging supports `text` and `json` output via `LOG_FORMAT`.
-- Startup, refresh, and dispatch telemetry is emitted through Python standard `logging`.
-- Core CLI operations (`init`, `refresh`, `run`) emit event-style log messages with timing and outcome fields.
-
-## Validation coverage
-
-- Functional smoke tests validate CLI mode behavior (`init` connected-mode requirement, offline `run` mode startup).
-- Integration tests validate dispatcher tool registration and `listOperations` discovery roundtrips from loaded YAML artifacts.
+- Namespace executor tools: `<namespace>_execute`
+- Discovery helpers:
+  - `listOperations`
+  - `getOperationSchema`
+  - `getCodeSample`
 
 ## License
 
 Apache 2.0
+
+## Additional Docs
+
+- `docs/USAGE_GUIDE.md` for local setup, inspector testing, and troubleshooting.
