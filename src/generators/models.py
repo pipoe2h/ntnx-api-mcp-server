@@ -38,3 +38,5 @@ class OperationDiscoveryItem(BaseModel):
     method: str
     path: str
     summary: str
+    permission_name: str | None = None
+    required_roles: list[str] = Field(default_factory=list)

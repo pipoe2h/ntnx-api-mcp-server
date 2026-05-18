@@ -40,3 +40,4 @@ def test_artifact_only_mode_allowed_without_pc_host() -> None:
     # Access to runtime artifact paths should still be valid in artifact-only mode.
     assert settings.artifacts_dir.exists()
     assert settings.default_artifacts_dir.exists()
+    assert settings.log_dir.exists()

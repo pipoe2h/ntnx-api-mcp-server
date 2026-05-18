@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["text", "json"] = "text"
+    log_dir: Path | None = Field(default=None, description="Directory for per-restart log files")
 
     @property
     def project_root(self) -> Path:
@@ -96,6 +97,8 @@ class Settings(BaseSettings):
             self.artifacts_dir = self.project_root / "artifacts"
         if self.default_artifacts_dir is None:
             self.default_artifacts_dir = self.project_root / "src" / "artifacts" / "default_specs"
+        if self.log_dir is None:
+            self.log_dir = self.project_root / "logs"
 
         try:
             self.artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -110,10 +113,13 @@ class Settings(BaseSettings):
                 ) from exc
         if not self.default_artifacts_dir.exists():
             self.default_artifacts_dir.mkdir(parents=True, exist_ok=True)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
         if not self.default_artifacts_dir.is_dir():
             raise ValueError(
                 f"Bundled default specs path is not a directory: {self.default_artifacts_dir}"
             )
+        if not self.log_dir.is_dir():
+            raise ValueError(f"Log directory is not a directory: {self.log_dir}")
         return self
 
 
@@ -162,6 +168,7 @@ def _build_env_payload() -> dict[str, Any]:
         "ARTIFACTS_DIR": "artifacts_dir",
         "LOG_LEVEL": "log_level",
         "LOG_FORMAT": "log_format",
+        "LOG_DIR": "log_dir",
         "NAMESPACE_SOURCE_URL": "namespace_source_url",
         "NAMESPACE_OVERRIDE_LIST": "namespace_override_list",
     }

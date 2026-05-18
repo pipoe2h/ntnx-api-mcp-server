@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 import logging
 from pathlib import Path
@@ -28,6 +29,8 @@ def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None
             f"PC_INSECURE={'true' if settings.pc_insecure else 'false'}",
             f"ARTIFACTS_DIR={settings.artifacts_dir}",
             f"LOG_LEVEL={settings.log_level}",
+            f"LOG_FORMAT={settings.log_format}",
+            f"LOG_DIR={settings.log_dir}",
             "",
         ]
     )
@@ -50,6 +53,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pc-insecure", choices=["true", "false"])
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
     parser.add_argument("--log-format", choices=["text", "json"])
+    parser.add_argument("--log-dir")
     parser.add_argument("--namespace-source-url")
     parser.add_argument("--namespace-override-list")
 
@@ -90,6 +94,8 @@ def _build_overrides(args: argparse.Namespace) -> dict[str, Any]:
         overrides["log_level"] = args.log_level
     if args.log_format is not None:
         overrides["log_format"] = args.log_format
+    if args.log_dir is not None:
+        overrides["log_dir"] = args.log_dir
     if args.namespace_source_url is not None:
         overrides["namespace_source_url"] = args.namespace_source_url
     if args.namespace_override_list is not None:
@@ -97,7 +103,7 @@ def _build_overrides(args: argparse.Namespace) -> dict[str, Any]:
     return overrides
 
 
-def _configure_logging(log_level: str, log_format: str) -> None:
+def _configure_logging(log_level: str, log_format: str, log_dir: Path) -> Path:
     """Configure standard-library logging handlers for CLI/runtime."""
     level = getattr(logging, log_level.upper(), logging.INFO)
     if log_format == "json":
@@ -107,7 +113,15 @@ def _configure_logging(log_level: str, log_format: str) -> None:
         )
     else:
         formatter = "%(asctime)s %(levelname)s %(name)s %(message)s"
-    logging.basicConfig(level=level, format=formatter, force=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    log_path = log_dir / f"nutanix-mcp-{timestamp}.log"
+    handlers: list[logging.Handler] = [
+        logging.StreamHandler(),
+        logging.FileHandler(log_path, encoding="utf-8"),
+    ]
+    logging.basicConfig(level=level, format=formatter, handlers=handlers, force=True)
+    return log_path
 
 
 def main() -> None:
@@ -119,12 +133,13 @@ def main() -> None:
         config_file=args.config_file,
         overrides=_build_overrides(args),
     )
-    _configure_logging(settings.log_level, settings.log_format)
+    log_path = _configure_logging(settings.log_level, settings.log_format, settings.log_dir)
     LOGGER.info(
-        "event=cli_started command=%s log_level=%s log_format=%s",
+        "event=cli_started command=%s log_level=%s log_format=%s log_file=%s",
         args.command or "run",
         settings.log_level,
         settings.log_format,
+        log_path,
     )
 
     command = args.command or "run"
@@ -218,6 +233,7 @@ def main() -> None:
             "pc_insecure": settings.pc_insecure,
             "log_level": settings.log_level,
             "log_format": settings.log_format,
+            "log_dir": str(settings.log_dir),
             "artifacts_dir": str(settings.artifacts_dir),
             "default_artifacts_dir": str(settings.default_artifacts_dir),
             "artifact_mode": artifact_mode,

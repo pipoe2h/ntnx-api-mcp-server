@@ -73,6 +73,8 @@ class RuntimeToolDispatcher:
                 result = self._handle_get_operation_schema(args)
             case "getCodeSample":
                 result = self._handle_get_code_sample(args)
+            case "getOperationPermissions":
+                result = self._handle_get_operation_permissions(args)
             case _ if name.endswith("_execute"):
                 namespace = name[: -len("_execute")]
                 result = self._handle_namespace_execute(namespace, args)
@@ -147,6 +149,24 @@ class RuntimeToolDispatcher:
                 },
             )
         return ToolDispatchResult(ok=True, tool="getCodeSample", payload=sample)
+
+    def _handle_get_operation_permissions(self, args: dict[str, Any]) -> ToolDispatchResult:
+        operation = args.get("operation")
+        if not isinstance(operation, str) or not operation:
+            return ToolDispatchResult(
+                ok=False,
+                tool="getOperationPermissions",
+                error={"code": "invalid_arguments", "detail": "'operation' is required."},
+            )
+        try:
+            permissions = self.generator.get_operation_permissions(operation)
+        except KeyError:
+            return ToolDispatchResult(
+                ok=False,
+                tool="getOperationPermissions",
+                error={"code": "unknown_operation", "detail": f"Unknown operation '{operation}'."},
+            )
+        return ToolDispatchResult(ok=True, tool="getOperationPermissions", payload=permissions)
 
     def _handle_namespace_execute(self, namespace: str, args: dict[str, Any]) -> ToolDispatchResult:
         operation_id = args.get("operation")

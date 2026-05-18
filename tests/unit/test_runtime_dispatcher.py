@@ -21,6 +21,11 @@ def _build_dispatcher() -> RuntimeToolDispatcher:
             ParameterInfo(name="$limit", location="query", required=False),
         ],
         code_samples=[{"lang": "python", "source": "print('hello')"}],
+        permissions={
+            "operationName": "View VM",
+            "roleList": [{"name": "Prism Viewer"}, {"name": "Prism Admin"}],
+        },
+        required_roles=["Prism Viewer", "Prism Admin"],
     )
     load_result = StartupLoadResult(
         artifacts_source="runtime",
@@ -55,6 +60,14 @@ def test_get_code_sample_helper() -> None:
     result = dispatcher.call_tool("getCodeSample", {"operation": "getVmById", "language": "python"})
     assert result.ok is True
     assert result.payload["lang"] == "python"
+
+
+def test_get_operation_permissions_helper() -> None:
+    dispatcher = _build_dispatcher()
+    result = dispatcher.call_tool("getOperationPermissions", {"operation": "getVmById"})
+    assert result.ok is True
+    assert result.payload["permission_name"] == "View VM"
+    assert "Prism Viewer" in result.payload["required_roles"]
 
 
 def test_namespace_execute_with_odata_alias(monkeypatch) -> None:  # type: ignore[no-untyped-def]
