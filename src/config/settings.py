@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     pc_port: int = Field(default=9440, description="Prism Central API port")
     pc_username: str | None = Field(default=None, description="Prism Central username")
     pc_password: SecretStr | None = Field(default=None, description="Prism Central password")
+    pc_api_key: SecretStr | None = Field(default=None, description="Prism Central API key")
     pc_insecure: bool = Field(default=True, description="Skip TLS certificate verification")
 
     # Runtime locations
@@ -164,6 +165,7 @@ def _build_env_payload() -> dict[str, Any]:
         "PC_PORT": "pc_port",
         "PC_USERNAME": "pc_username",
         "PC_PASSWORD": "pc_password",
+        "PC_API_KEY": "pc_api_key",
         "PC_INSECURE": "pc_insecure",
         "ARTIFACTS_DIR": "artifacts_dir",
         "LOG_LEVEL": "log_level",

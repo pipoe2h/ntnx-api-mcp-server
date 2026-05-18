@@ -32,6 +32,14 @@ paths:
           required: false
           schema:
             type: boolean
+    post:
+      operationId: createVm
+      summary: Create VM
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
 """
     file_path = tmp_path / "vmm-v4.2-all-documentation.yaml"
     file_path.write_text(yaml_text, encoding="utf-8")

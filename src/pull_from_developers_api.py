@@ -13,7 +13,7 @@ import httpx
 import yaml
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.auth import build_basic_auth
+from src.auth import build_auth_context
 from src.config import Settings
 from src.config.constants import (
     ARTIFACT_FILENAME_SUFFIX,
@@ -148,12 +148,13 @@ def get_namespace_version(settings: Settings, namespace: str) -> str | None:
         pc_port=settings.pc_port,
         namespace=namespace,
     )
+    auth, headers = build_auth_context(settings)
     with httpx.Client(
         timeout=settings.startup_timeout_seconds,
         verify=not settings.pc_insecure,
-        auth=build_basic_auth(settings),
+        auth=auth,
     ) as client:
-        response = client.options(url)
+        response = client.options(url, headers=headers)
 
     if response.status_code == 404:
         return None

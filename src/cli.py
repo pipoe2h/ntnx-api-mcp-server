@@ -26,6 +26,7 @@ def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None
             f"PC_PORT={settings.pc_port}",
             f"PC_USERNAME={settings.pc_username or ''}",
             f"PC_PASSWORD={settings.pc_password.get_secret_value() if settings.pc_password else ''}",
+            f"PC_API_KEY={settings.pc_api_key.get_secret_value() if settings.pc_api_key else ''}",
             f"PC_INSECURE={'true' if settings.pc_insecure else 'false'}",
             f"ARTIFACTS_DIR={settings.artifacts_dir}",
             f"LOG_LEVEL={settings.log_level}",
@@ -50,6 +51,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pc-port", type=int)
     parser.add_argument("--pc-username")
     parser.add_argument("--pc-password")
+    parser.add_argument("--pc-api-key")
     parser.add_argument("--pc-insecure", choices=["true", "false"])
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
     parser.add_argument("--log-format", choices=["text", "json"])
@@ -88,6 +90,8 @@ def _build_overrides(args: argparse.Namespace) -> dict[str, Any]:
         overrides["pc_username"] = args.pc_username
     if args.pc_password is not None:
         overrides["pc_password"] = args.pc_password
+    if args.pc_api_key is not None:
+        overrides["pc_api_key"] = args.pc_api_key
     if args.pc_insecure is not None:
         overrides["pc_insecure"] = args.pc_insecure == "true"
     if args.log_level is not None:
@@ -230,6 +234,7 @@ def main() -> None:
             "pc_host": settings.pc_host,
             "pc_port": settings.pc_port,
             "pc_username": settings.pc_username,
+            "pc_api_key": "***" if settings.pc_api_key else None,
             "pc_insecure": settings.pc_insecure,
             "log_level": settings.log_level,
             "log_format": settings.log_format,

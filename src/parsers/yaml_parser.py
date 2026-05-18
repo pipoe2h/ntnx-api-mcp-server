@@ -40,6 +40,7 @@ class OperationInfo:
 
 class OpenAPIParser:
     """Parser for v4 OpenAPI YAML specifications."""
+    SUPPORTED_METHODS = ("get", "post", "put", "patch", "delete")
 
     def __init__(self, file_path: Path) -> None:
         self.file_path = file_path
@@ -54,8 +55,8 @@ class OpenAPIParser:
         self.spec = loaded
         return self.spec
 
-    def extract_get_operations(self, namespace: str) -> list[OperationInfo]:
-        """Extract GET operations from OpenAPI paths."""
+    def extract_operations(self, namespace: str) -> list[OperationInfo]:
+        """Extract supported HTTP operations from OpenAPI paths."""
         if not self.spec:
             self.load()
         paths = self.spec.get("paths", {})
@@ -66,13 +67,18 @@ class OpenAPIParser:
         for path, path_item in paths.items():
             if not isinstance(path_item, dict):
                 continue
-            get_item = path_item.get("get")
-            if not isinstance(get_item, dict):
-                continue
-            operation = self._build_operation(namespace, path, "get", get_item, path_item)
-            if operation is not None:
-                operations.append(operation)
+            for method in self.SUPPORTED_METHODS:
+                op_item = path_item.get(method)
+                if not isinstance(op_item, dict):
+                    continue
+                operation = self._build_operation(namespace, path, method, op_item, path_item)
+                if operation is not None:
+                    operations.append(operation)
         return operations
+
+    def extract_get_operations(self, namespace: str) -> list[OperationInfo]:
+        """Backward-compatible helper for legacy tests/callers."""
+        return [operation for operation in self.extract_operations(namespace) if operation.method == "GET"]
 
     def _build_operation(
         self,
@@ -95,6 +101,8 @@ class OpenAPIParser:
         tags = tags_value if isinstance(tags_value, list) else []
 
         code_samples_value = op_item.get("x-codeSamples")
+        if not isinstance(code_samples_value, list):
+            code_samples_value = op_item.get("x-code-samples")
         code_samples = code_samples_value if isinstance(code_samples_value, list) else []
 
         request_body = op_item.get("requestBody")

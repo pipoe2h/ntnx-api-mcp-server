@@ -75,14 +75,18 @@ def test_namespace_execute_with_odata_alias(monkeypatch) -> None:  # type: ignor
 
     captured = {}
 
-    def _fake_execute_get_request(path, path_params=None, query_params=None, headers=None):  # type: ignore[no-untyped-def]
+    def _fake_execute_request(
+        method, path, path_params=None, query_params=None, headers=None, body=None
+    ):  # type: ignore[no-untyped-def]
+        captured["method"] = method
         captured["path"] = path
         captured["path_params"] = path_params
         captured["query_params"] = query_params
         captured["headers"] = headers
+        captured["body"] = body
         return {"metadata": {"messages": []}, "data": [{"extId": "x"}]}
 
-    monkeypatch.setattr(dispatcher.api_handler, "execute_get_request", _fake_execute_get_request)
+    monkeypatch.setattr(dispatcher.api_handler, "execute_request", _fake_execute_request)
 
     result = dispatcher.call_tool(
         "vmm_execute",
@@ -94,6 +98,58 @@ def test_namespace_execute_with_odata_alias(monkeypatch) -> None:  # type: ignor
     )
 
     assert result.ok is True
+    assert captured["method"] == "GET"
     assert captured["path"] == "/vms/{vmId}"
     assert captured["path_params"]["vmId"] == "vm-123"
     assert captured["query_params"]["$limit"] == 10
+    assert captured["body"] is None
+
+
+def test_namespace_execute_for_post_with_request_body(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    operation = OperationInfo(
+        namespace="vmm",
+        operation_id="createVm",
+        path="/vms",
+        method="POST",
+        summary="Create VM",
+        description="Create VM",
+        request_body={"content": {"application/json": {"schema": {"type": "object"}}}},
+    )
+    load_result = StartupLoadResult(
+        artifacts_source="runtime",
+        artifact_directory=Settings().artifacts_dir,
+        files=[],
+        operations=[operation],
+        namespace_tools=[],
+        discovery_tools=[],
+        operation_index={},
+    )
+    dispatcher = RuntimeToolDispatcher(
+        settings=Settings(pc_host="127.0.0.1", pc_port=9440),
+        load_result=load_result,
+    )
+
+    captured = {}
+
+    def _fake_execute_request(
+        method, path, path_params=None, query_params=None, headers=None, body=None
+    ):  # type: ignore[no-untyped-def]
+        captured["method"] = method
+        captured["path"] = path
+        captured["body"] = body
+        return {"data": {"ok": True}}
+
+    monkeypatch.setattr(dispatcher.api_handler, "execute_request", _fake_execute_request)
+
+    result = dispatcher.call_tool(
+        "vmm_execute",
+        {
+            "operation": "createVm",
+            "request_body": {"name": "vm-1"},
+        },
+    )
+
+    assert result.ok is True
+    assert captured["method"] == "POST"
+    assert captured["path"] == "/vms"
+    assert captured["body"] == {"name": "vm-1"}

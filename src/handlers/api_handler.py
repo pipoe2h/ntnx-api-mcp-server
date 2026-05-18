@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 import httpx
 
-from src.auth import build_basic_auth
+from src.auth import build_auth_context
 from src.config import Settings
 
 
@@ -17,6 +17,37 @@ class APIHandler:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
+    def execute_request(
+        self,
+        method: str,
+        path: str,
+        path_params: dict[str, Any] | None = None,
+        query_params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Execute an HTTP request against Prism Central."""
+        resolved_path = self._resolve_path(path, path_params or {})
+
+        normalized_query = self._normalize_query_params(query_params or {})
+        normalized_headers = self._normalize_headers(headers or {})
+        auth, auth_headers = build_auth_context(self.settings)
+        normalized_headers.update(auth_headers)
+        url = f"{self.settings.pc_base_url}{resolved_path}"
+        with httpx.Client(
+            verify=not self.settings.pc_insecure,
+            timeout=self.settings.startup_timeout_seconds,
+            auth=auth,
+        ) as client:
+            response = client.request(
+                method.upper(),
+                url,
+                params=normalized_query,
+                headers=normalized_headers,
+                json=body if body is not None else None,
+            )
+        return self._as_result(response)
+
     def execute_get_request(
         self,
         path: str,
@@ -24,24 +55,15 @@ class APIHandler:
         query_params: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        """Execute a GET request against Prism Central."""
-        resolved_path = self._resolve_path(path, path_params or {})
-
-        normalized_query = self._normalize_query_params(query_params or {})
-        normalized_headers = self._normalize_headers(headers or {})
-        url = f"{self.settings.pc_base_url}{resolved_path}"
-        auth = build_basic_auth(self.settings)
-        with httpx.Client(
-            verify=not self.settings.pc_insecure,
-            timeout=self.settings.startup_timeout_seconds,
-            auth=auth,
-        ) as client:
-            response = client.get(
-                url,
-                params=normalized_query,
-                headers=normalized_headers,
-            )
-        return self._as_result(response)
+        """Backward-compatible GET helper."""
+        return self.execute_request(
+            method="GET",
+            path=path,
+            path_params=path_params,
+            query_params=query_params,
+            headers=headers,
+            body=None,
+        )
 
     @staticmethod
     def _resolve_path(path: str, path_params: dict[str, Any]) -> str:

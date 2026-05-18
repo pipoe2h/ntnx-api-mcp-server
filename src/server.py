@@ -69,7 +69,7 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
     """
     Load all operations from selected YAML source.
 
-    Only GET operations are extracted in this phase.
+    Supported HTTP operations are extracted in this phase.
     """
     source_label, source_dir = select_artifact_source(settings)
     files = list_yaml_artifacts(source_dir)
@@ -79,7 +79,7 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
         parser = OpenAPIParser(file_path)
         parser.load()
         namespace = infer_namespace(file_path)
-        operations.extend(parser.extract_get_operations(namespace=namespace))
+        operations.extend(parser.extract_operations(namespace=namespace))
 
     generator = ToolGenerator(operations)
     namespace_tools = generator.build_namespace_tools()

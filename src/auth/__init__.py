@@ -6,6 +6,7 @@ from .readiness import (
     StartupReadinessResult,
     StartupTlsError,
     StartupValidationError,
+    build_auth_context,
     build_basic_auth,
     validate_startup_readiness,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "StartupReadinessResult",
     "StartupTlsError",
     "StartupValidationError",
+    "build_auth_context",
     "build_basic_auth",
     "validate_startup_readiness",
 ]

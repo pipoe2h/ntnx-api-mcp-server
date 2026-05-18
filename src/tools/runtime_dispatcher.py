@@ -214,12 +214,22 @@ class RuntimeToolDispatcher:
             elif parameter.location == "header":
                 headers[param_name] = value
 
+        request_body = args.get("request_body")
+        if request_body is not None and not isinstance(request_body, dict):
+            return ToolDispatchResult(
+                ok=False,
+                tool=f"{namespace}_execute",
+                error={"code": "invalid_arguments", "detail": "'request_body' must be an object."},
+            )
+
         try:
-            payload = self.api_handler.execute_get_request(
+            payload = self.api_handler.execute_request(
+                method=operation.method,
                 path=operation.path,
                 path_params=path_params,
                 query_params=query_params,
                 headers=headers,
+                body=request_body,
             )
         except Exception as exc:
             return ToolDispatchResult(

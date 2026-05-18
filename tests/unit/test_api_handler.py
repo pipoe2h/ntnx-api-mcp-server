@@ -36,8 +36,8 @@ class _FakeResponse:
 
 
 class _FakeClient:
-    def __init__(self, get_impl: Callable[..., _FakeResponse]) -> None:
-        self._get_impl = get_impl
+    def __init__(self, request_impl: Callable[..., _FakeResponse]) -> None:
+        self._request_impl = request_impl
 
     def __enter__(self) -> "_FakeClient":
         return self
@@ -45,8 +45,15 @@ class _FakeClient:
     def __exit__(self, exc_type, exc, tb) -> None:  # type: ignore[no-untyped-def]
         return None
 
-    def get(self, url: str, params: dict[str, str], headers: dict[str, str]) -> _FakeResponse:
-        return self._get_impl(url=url, params=params, headers=headers)
+    def request(
+        self,
+        method: str,
+        url: str,
+        params: dict[str, str],
+        headers: dict[str, str],
+        json: dict[str, object] | None = None,
+    ) -> _FakeResponse:
+        return self._request_impl(method=method, url=url, params=params, headers=headers, json=json)
 
 
 def test_resolve_path_requires_exact_path_params() -> None:
@@ -67,7 +74,8 @@ def test_resolve_path_requires_exact_path_params() -> None:
 
 
 def test_execute_get_request_returns_deterministic_http_error(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    def _get_impl(**kwargs):  # type: ignore[no-untyped-def]
+    def _request_impl(**kwargs):  # type: ignore[no-untyped-def]
+        assert kwargs["method"] == "GET"
         return _FakeResponse(
             status_code=503,
             payload={
@@ -78,7 +86,7 @@ def test_execute_get_request_returns_deterministic_http_error(monkeypatch) -> No
 
     monkeypatch.setattr(
         "src.handlers.api_handler.httpx.Client",
-        lambda **_kwargs: _FakeClient(_get_impl),
+        lambda **_kwargs: _FakeClient(_request_impl),
     )
 
     result = APIHandler(_settings()).execute_get_request(
@@ -93,12 +101,12 @@ def test_execute_get_request_returns_deterministic_http_error(monkeypatch) -> No
 
 
 def test_execute_get_request_maps_timeout_error(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    def _get_impl(**kwargs):  # type: ignore[no-untyped-def]
+    def _request_impl(**kwargs):  # type: ignore[no-untyped-def]
         raise httpx.ReadTimeout("timed out")
 
     monkeypatch.setattr(
         "src.handlers.api_handler.httpx.Client",
-        lambda **_kwargs: _FakeClient(_get_impl),
+        lambda **_kwargs: _FakeClient(_request_impl),
     )
 
     try:
@@ -110,3 +118,38 @@ def test_execute_get_request_maps_timeout_error(monkeypatch) -> None:  # type: i
         raise AssertionError("Expected timeout exception")
     except httpx.ReadTimeout:
         pass
+
+
+def test_execute_request_supports_body_and_api_key_header(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    settings = Settings(
+        pc_host="127.0.0.1",
+        pc_port=9440,
+        pc_api_key="api-key-123",
+    )
+    captured: dict[str, object] = {}
+
+    def _request_impl(**kwargs):  # type: ignore[no-untyped-def]
+        captured.update(kwargs)
+        return _FakeResponse(status_code=200, payload={"data": {"ok": True}})
+
+    monkeypatch.setattr(
+        "src.handlers.api_handler.httpx.Client",
+        lambda **_kwargs: _FakeClient(_request_impl),
+    )
+
+    result = APIHandler(settings).execute_request(
+        method="POST",
+        path="/vms",
+        path_params={},
+        query_params={"$limit": 10},
+        headers={"X-Custom": "yes"},
+        body={"name": "vm-1"},
+    )
+
+    assert result["data"]["ok"] is True
+    assert captured["method"] == "POST"
+    assert captured["json"] == {"name": "vm-1"}
+    sent_headers = captured["headers"]
+    assert isinstance(sent_headers, dict)
+    assert sent_headers["X-ntnx-api-key"] == "api-key-123"
+    assert sent_headers["X-Custom"] == "yes"

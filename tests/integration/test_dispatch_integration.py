@@ -36,6 +36,7 @@ def test_dispatcher_lists_discovery_and_namespace_tools(tmp_path) -> None:  # ty
     assert "listOperations" in names
     assert "getOperationSchema" in names
     assert "getCodeSample" in names
+    assert "getOperationPermissions" in names
 
 
 def test_dispatcher_list_operations_roundtrip(tmp_path) -> None:  # type: ignore[no-untyped-def]

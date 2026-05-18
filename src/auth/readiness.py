@@ -43,6 +43,22 @@ def build_basic_auth(settings: Settings) -> tuple[str, str] | None:
     return None
 
 
+def build_auth_headers(settings: Settings) -> dict[str, str]:
+    """Build API-key authorization headers when key is configured."""
+    if settings.pc_api_key:
+        return {"X-ntnx-api-key": settings.pc_api_key.get_secret_value()}
+    return {}
+
+
+def build_auth_context(settings: Settings) -> tuple[tuple[str, str] | None, dict[str, str]]:
+    """
+    Build outgoing auth context supporting both schemes.
+
+    API key and basic auth can coexist; if both are set, both are sent.
+    """
+    return (build_basic_auth(settings), build_auth_headers(settings))
+
+
 @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), reraise=True)
 def _probe_pc(settings: Settings) -> httpx.Response:
     """Probe Prism Central via a stable unversioned endpoint."""
@@ -51,12 +67,13 @@ def _probe_pc(settings: Settings) -> httpx.Response:
         pc_port=settings.pc_port,
         namespace="prism",
     )
+    auth, headers = build_auth_context(settings)
     with httpx.Client(
         verify=not settings.pc_insecure,
         timeout=settings.startup_timeout_seconds,
-        auth=build_basic_auth(settings),
+        auth=auth,
     ) as client:
-        return client.options(url)
+        return client.options(url, headers=headers)
 
 
 def validate_startup_readiness(settings: Settings) -> StartupReadinessResult:
@@ -64,6 +81,10 @@ def validate_startup_readiness(settings: Settings) -> StartupReadinessResult:
     if not settings.pc_host:
         raise StartupValidationError(
             "PC_HOST is not configured. Connected-mode startup readiness probe cannot run."
+        )
+    if settings.pc_api_key is None and not (settings.pc_username and settings.pc_password):
+        raise StartupAuthError(
+            "No Prism Central auth configured. Provide PC_API_KEY or PC_USERNAME/PC_PASSWORD."
         )
 
     try:
@@ -94,7 +115,7 @@ def validate_startup_readiness(settings: Settings) -> StartupReadinessResult:
     if response.status_code in {401, 403}:
         raise StartupAuthError(
             "Prism Central authentication failed during startup. "
-            "Verify PC_USERNAME/PC_PASSWORD permissions."
+            "Verify PC_API_KEY or PC_USERNAME/PC_PASSWORD permissions."
         )
     if response.status_code == 404:
         raise StartupValidationError(

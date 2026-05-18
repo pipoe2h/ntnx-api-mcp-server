@@ -53,6 +53,7 @@ class ToolGenerator:
                         "_orderby": {"type": "string"},
                         "_select": {"type": "string"},
                         "_expand": {"type": "string"},
+                        "request_body": {"type": "object"},
                     },
                     required=["operation"],
                 ),
@@ -225,7 +226,16 @@ class ToolGenerator:
                 detail=f"Unknown operation '{operation}' for namespace '{namespace}'",
             )
 
-        allowed_keys = {"operation", "_page", "_limit", "_filter", "_orderby", "_select", "_expand"}
+        allowed_keys = {
+            "operation",
+            "_page",
+            "_limit",
+            "_filter",
+            "_orderby",
+            "_select",
+            "_expand",
+            "request_body",
+        }
         allowed_keys.update({parameter.name for parameter in target.parameters})
 
         invalid_keys = [key for key in request_payload if key not in allowed_keys]
@@ -234,3 +244,9 @@ class ToolGenerator:
                 code="invalid_parameters",
                 detail=f"Unsupported request fields: {', '.join(sorted(invalid_keys))}",
             )
+        if "request_body" in request_payload and request_payload["request_body"] is not None:
+            if not isinstance(request_payload["request_body"], dict):
+                raise ToolContractError(
+                    code="invalid_parameters",
+                    detail="request_body must be an object when provided.",
+                )

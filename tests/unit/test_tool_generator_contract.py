@@ -36,7 +36,12 @@ def test_validate_operation_request_accepts_allowed_fields() -> None:
     generator.validate_namespace_operation_request(
         namespace="vmm",
         operation="getVmById",
-        request_payload={"operation": "getVmById", "vmId": "1234", "_filter": "name eq 'a'"},
+        request_payload={
+            "operation": "getVmById",
+            "vmId": "1234",
+            "_filter": "name eq 'a'",
+            "request_body": {"foo": "bar"},
+        },
     )
 
 
@@ -47,5 +52,16 @@ def test_validate_operation_request_rejects_unknown_fields() -> None:
             namespace="vmm",
             operation="getVmById",
             request_payload={"operation": "getVmById", "unknownField": "x"},
+        )
+    assert exc.value.code == "invalid_parameters"
+
+
+def test_validate_operation_request_rejects_non_object_body() -> None:
+    generator = ToolGenerator([_operation()])
+    with pytest.raises(ToolContractError) as exc:
+        generator.validate_namespace_operation_request(
+            namespace="vmm",
+            operation="getVmById",
+            request_payload={"operation": "getVmById", "request_body": "bad"},
         )
     assert exc.value.code == "invalid_parameters"
