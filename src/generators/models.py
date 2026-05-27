@@ -40,3 +40,13 @@ class OperationDiscoveryItem(BaseModel):
     summary: str
     permission_name: str | None = None
     required_roles: list[str] = Field(default_factory=list)
+    # Populated when a search term is provided; None when listing without search.
+    relevance_score: int | None = None
+    # Fields where the search tokens were matched; helps LLM assess match quality.
+    match_fields: list[str] = Field(default_factory=list)
+    # Original operation_id from the Nutanix spec when a collision required renaming.
+    # None for the majority of operations where operation == spec operation_id.
+    spec_operation_id: str | None = None
+    # Discriminator prefix that was applied, e.g. 'ahv', 'esxi', 'installer'.
+    # None when the operation has no variants in its namespace.
+    path_variant: str | None = None

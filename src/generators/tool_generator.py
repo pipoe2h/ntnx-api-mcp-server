@@ -3,10 +3,88 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import re
 from typing import Any
 
 from src.generators.models import OperationDiscoveryItem, ToolDefinition, ToolInputSchema
 from src.parsers import OperationInfo
+from src.parsers.yaml_parser import _camel_to_tokens
+
+_VERSION_RE = re.compile(r"^v\d+", re.IGNORECASE)
+
+
+def _score_operation(
+    operation: OperationInfo,
+    query_tokens: list[str],
+) -> tuple[int, list[str]]:
+    """Score an operation against query tokens using field-weighted matching.
+
+    Returns (score, matched_fields). Score 0 means no match (all tokens must hit).
+    Higher score = stronger relevance. Fields checked in order of signal strength:
+      registered_name (raw)      -> 50 pts per token  (callable name, variant-aware)
+      operation_id (raw)         -> 50 pts per token  (spec name; same tier as registered_name)
+      operation_id (camel split) -> 40 pts per token
+      summary                    -> 20 pts per token
+      path tokens                -> 10 pts per token
+      enriched search_text       ->  5 pts per token (tag names, descriptions)
+    Bonus: +20 when ALL tokens matched in a single high-signal field (concentrated match).
+    """
+    op_id_lower = operation.operation_id.lower()
+    # registered_name differs from operation_id only for variant operations (e.g. ahv_listVms).
+    # Score it at the same tier so variant discriminators ("ahv", "esxi") rank correctly.
+    reg_name_lower = operation.registered_name.lower()
+    reg_name_differs = reg_name_lower != op_id_lower
+    op_id_tokens = set(_camel_to_tokens(operation.operation_id).split())
+    summary_lower = operation.summary.lower()
+    # Path tokens: split on / and strip version segments and braces
+    version_re = _VERSION_RE
+    path_tokens_text = " ".join(
+        seg.replace("-", " ").replace("_", " ").lower()
+        for seg in operation.path.split("/")
+        if seg and not seg.startswith("{") and not version_re.match(seg)
+    )
+    search_text = operation.search_text
+
+    score = 0
+    matched_fields: list[str] = []
+    field_hits: dict[str, int] = {}
+
+    for token in query_tokens:
+        hit = False
+        if token in op_id_lower or (reg_name_differs and token in reg_name_lower):
+            score += 50
+            field_hits["operation_id"] = field_hits.get("operation_id", 0) + 1
+            hit = True
+        elif token in op_id_tokens:
+            score += 40
+            field_hits["operation_id"] = field_hits.get("operation_id", 0) + 1
+            hit = True
+        if token in summary_lower:
+            score += 20
+            field_hits["summary"] = field_hits.get("summary", 0) + 1
+            hit = True
+        if token in path_tokens_text:
+            score += 10
+            field_hits["path"] = field_hits.get("path", 0) + 1
+            hit = True
+        if token in search_text and not hit:
+            # Catch tag names, descriptions, CamelCase expansions not yet scored above.
+            score += 5
+            field_hits["search_text"] = field_hits.get("search_text", 0) + 1
+            hit = True
+
+        if not hit:
+            # Token not found anywhere — AND semantics: entire operation is not a match.
+            return 0, []
+
+    # Concentrated match bonus: all tokens hit the same high-signal field.
+    if field_hits.get("operation_id", 0) == len(query_tokens):
+        score += 20
+    elif field_hits.get("summary", 0) == len(query_tokens):
+        score += 10
+
+    matched_fields = sorted(field_hits.keys())
+    return score, matched_fields
 
 
 @dataclass(slots=True)
@@ -37,7 +115,8 @@ class ToolGenerator:
         """Build compact `<namespace>_execute` tool schemas."""
         tools: list[dict[str, Any]] = []
         for namespace, operations in sorted(self.group_by_namespace().items()):
-            operation_ids = [operation.operation_id for operation in operations]
+            # registered_name is guaranteed unique within a namespace by resolve_collisions().
+            registered_names = [op.registered_name for op in operations]
             tool = ToolDefinition(
                 name=f"{namespace}_execute",
                 description=(
@@ -46,7 +125,7 @@ class ToolGenerator:
                 ),
                 inputSchema=ToolInputSchema(
                     properties={
-                        "operation": {"type": "string", "enum": operation_ids},
+                        "operation": {"type": "string", "enum": registered_names},
                         "_page": {"type": "integer", "minimum": 0},
                         "_limit": {"type": "integer", "minimum": 1, "maximum": 100},
                         "_filter": {"type": "string"},
@@ -57,16 +136,16 @@ class ToolGenerator:
                     },
                     required=["operation"],
                 ),
-                metadata={"namespace": namespace, "operation_count": len(operation_ids)},
+                metadata={"namespace": namespace, "operation_count": len(registered_names)},
             )
             tools.append(tool.model_dump(by_alias=True, exclude_none=True))
         return tools
 
     def build_operation_index(self) -> dict[str, dict[str, Any]]:
-        """Build lookup index keyed by operation id."""
+        """Build lookup index keyed by registered_name (guaranteed unique per namespace)."""
         index: dict[str, dict[str, Any]] = {}
         for operation in self.operations:
-            index[operation.operation_id] = asdict(operation)
+            index[operation.registered_name] = asdict(operation)
         return index
 
     def build_discovery_tools(self) -> list[dict[str, Any]]:
@@ -74,7 +153,15 @@ class ToolGenerator:
         definitions = [
             ToolDefinition(
                 name="listOperations",
-                description="List available operations, optionally filtered by namespace or search text.",
+                description=(
+                    "List available API operations, optionally filtered by namespace or search terms. "
+                    "Results are ranked by relevance score (descending) when a search term is provided — "
+                    "position 1 is the server's highest-confidence match. "
+                    "Each result includes relevance_score (higher = stronger match) and match_fields "
+                    "(the fields where your tokens were found). "
+                    "match_fields containing 'operation_id' is a strong signal; 'search_text' only is weak. "
+                    "Use 1-2 keyword tokens for best results. Default limit is 20."
+                ),
                 inputSchema=ToolInputSchema(
                     properties={
                         "namespace": {"type": "string"},
@@ -118,42 +205,60 @@ class ToolGenerator:
         self,
         namespace: str | None = None,
         search: str | None = None,
-        limit: int = 100,
+        limit: int = 20,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        """List operations with optional namespace/search filtering and pagination."""
+        """List operations with optional namespace/search filtering, ranked by relevance."""
         normalized_namespace = namespace.strip() if isinstance(namespace, str) else None
-        normalized_search = search.lower().strip() if isinstance(search, str) else None
+        query_tokens = (
+            [t for t in search.lower().split() if t]
+            if isinstance(search, str) and search.strip()
+            else []
+        )
 
-        items: list[OperationDiscoveryItem] = []
+        scored: list[tuple[int, list[str], OperationDiscoveryItem]] = []
+
         for operation in self.operations:
             if normalized_namespace and operation.namespace != normalized_namespace:
                 continue
-            if normalized_search:
-                content = " ".join(
-                    [
-                        operation.operation_id,
-                        operation.path,
-                        operation.summary,
-                        operation.description,
-                    ]
-                ).lower()
-                if normalized_search not in content:
+
+            if query_tokens:
+                score, matched_fields = _score_operation(operation, query_tokens)
+                if score == 0:
                     continue
-            items.append(
+            else:
+                score, matched_fields = 0, []
+
+            scored.append((
+                score,
+                matched_fields,
                 OperationDiscoveryItem(
                     namespace=operation.namespace,
-                    operation=operation.operation_id,
+                    operation=operation.registered_name,
                     method=operation.method,
                     path=operation.path,
                     summary=operation.summary,
                     permission_name=self._extract_permission_name(operation.permissions),
                     required_roles=operation.required_roles,
-                )
-            )
+                    relevance_score=score if query_tokens else None,
+                    match_fields=matched_fields,
+                    spec_operation_id=(
+                        operation.operation_id
+                        if operation.path_variant is not None
+                        else None
+                    ),
+                    path_variant=operation.path_variant,
+                ),
+            ))
 
-        items.sort(key=lambda value: (value.namespace, value.operation))
-        return [item.model_dump() for item in items[offset : offset + limit]]
+        if query_tokens:
+            # Sort by score descending, then alphabetically for stable tie-breaking.
+            scored.sort(key=lambda x: (-x[0], x[2].namespace, x[2].operation))
+        else:
+            scored.sort(key=lambda x: (x[2].namespace, x[2].operation))
+
+        page = scored[offset: offset + limit]
+        return [item.model_dump() for _, _, item in page]
 
     def get_operation_schema(self, operation_id: str) -> dict[str, Any]:
         """Return detailed schema dictionary for an operation id."""
@@ -219,7 +324,7 @@ class ToolGenerator:
                 detail=f"Unknown namespace: {namespace}",
             )
 
-        target = next((item for item in namespace_ops if item.operation_id == operation), None)
+        target = next((item for item in namespace_ops if item.registered_name == operation), None)
         if target is None:
             raise ToolContractError(
                 code="unknown_operation",

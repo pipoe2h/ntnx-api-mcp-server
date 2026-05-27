@@ -94,7 +94,7 @@ class RuntimeToolDispatcher:
         return result
 
     def _handle_list_operations(self, args: dict[str, Any]) -> ToolDispatchResult:
-        limit = int(args.get("limit", 100))
+        limit = int(args.get("limit", 20))
         offset = int(args.get("offset", 0))
         items = self.generator.list_operations(
             namespace=args.get("namespace"),
@@ -242,7 +242,7 @@ class RuntimeToolDispatcher:
 
     def _find_operation(self, namespace: str, operation_id: str) -> OperationInfo | None:
         for operation in self.load_result.operations:
-            if operation.namespace == namespace and operation.operation_id == operation_id:
+            if operation.namespace == namespace and operation.registered_name == operation_id:
                 return operation
         return None
 

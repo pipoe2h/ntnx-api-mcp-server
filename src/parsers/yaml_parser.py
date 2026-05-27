@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
+import logging
+import re
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+LOGGER = logging.getLogger(__name__)
+
+_VERSION_SEG_RE = re.compile(r"^v\d+", re.IGNORECASE)
 
 
 @dataclass(slots=True)
@@ -36,10 +43,182 @@ class OperationInfo:
     request_body: dict[str, Any] | None = None
     permissions: dict[str, Any] | None = None
     required_roles: list[str] = field(default_factory=list)
+    # Pre-built enriched text blob for ranked search (built at parse time).
+    search_text: str = field(default="")
+    # Unique name used in enums, index keys, and execute calls.
+    # Equals operation_id for non-colliding ops; '{discriminator}_{operation_id}' for variants.
+    registered_name: str = field(default="")
+    # The discriminator segment that was prefixed, e.g. 'ahv', 'esxi', 'installer'.
+    # None when there is no collision for this operation_id within its namespace.
+    path_variant: str | None = field(default=None)
+
+    def __post_init__(self) -> None:
+        # Ensure registered_name always has a value even when built without collision detection.
+        if not self.registered_name:
+            self.registered_name = self.operation_id
+
+
+def _camel_to_tokens(name: str) -> str:
+    """Split camelCase/PascalCase into space-separated lowercase tokens.
+
+    listRecoveryPoints  -> 'list recovery points'
+    getVmAntiAffinityPolicy -> 'get vm anti affinity policy'
+    """
+    return re.sub(r"([A-Z])", r" \1", name).strip().lower()
+
+
+def _path_to_tokens(path: str) -> str:
+    """Extract meaningful tokens from an API path.
+
+    /dataprotection/v4.0/config/recovery-points/{extId}
+    -> 'dataprotection config recovery points'
+    """
+    meaningful: list[str] = []
+    for seg in path.split("/"):
+        seg = seg.strip()
+        if not seg or seg.startswith("{") or _VERSION_SEG_RE.match(seg):
+            continue
+        meaningful.append(seg.replace("-", " ").replace("_", " ").lower())
+    return " ".join(meaningful)
+
+
+def _meaningful_path_segments(path: str) -> list[str]:
+    """Return path segments excluding version strings, parameters, and empty parts."""
+    return [
+        seg for seg in path.split("/")
+        if seg and not seg.startswith("{") and not _VERSION_SEG_RE.match(seg)
+    ]
+
+
+def _common_suffix_ci(strings: list[str]) -> str:
+    """Return the longest common case-insensitive suffix shared by all strings."""
+    if not strings:
+        return ""
+    lowered = [s.lower() for s in strings]
+    shortest = min(lowered, key=len)
+    suffix_len = 0
+    for i in range(1, len(shortest) + 1):
+        candidate = shortest[-i:]
+        if all(s.endswith(candidate) for s in lowered):
+            suffix_len = i
+        else:
+            break
+    return shortest[-suffix_len:] if suffix_len else ""
+
+
+def _to_snake(text: str) -> str:
+    """Convert PascalCase or mixed text to lowercase snake_case."""
+    s = re.sub(r"([A-Z])", r"_\1", text).strip("_").lower()
+    return re.sub(r"_+", "_", s)
+
+
+def _derive_discriminators(variants: list[OperationInfo]) -> list[str]:
+    """Derive a unique, stable discriminator label for each variant in a collision group.
+
+    Priority per variant:
+    1. Tag-based: strip the common suffix from all first-tags; if non-empty, use it.
+    2. Path-based fallback: first unique meaningful path segment for that variant.
+    3. Index fallback: 'variant_{n}' (should never be reached in practice).
+    """
+    first_tags = [op.tags[0] if op.tags else "" for op in variants]
+    all_paths = [op.path for op in variants]
+
+    # --- Tag-based discriminators ---
+    common_sfx = _common_suffix_ci([t for t in first_tags if t])
+    tag_discs: list[str | None] = []
+    for tag in first_tags:
+        if not tag:
+            tag_discs.append(None)
+            continue
+        stripped = tag[: len(tag) - len(common_sfx)] if common_sfx else tag
+        disc = _to_snake(stripped) if stripped else None
+        tag_discs.append(disc)
+
+    # --- Path-based discriminators ---
+    seg_sets = [set(_meaningful_path_segments(p)) for p in all_paths]
+    common_segs = seg_sets[0].intersection(*seg_sets[1:]) if len(seg_sets) > 1 else seg_sets[0]
+    path_discs: list[str | None] = [
+        next((s for s in sorted(segs - common_segs)), None) for segs in seg_sets
+    ]
+
+    # --- Merge: tag first, path as fallback ---
+    merged = [
+        (td if td else pd) for td, pd in zip(tag_discs, path_discs)
+    ]
+
+    # --- Uniqueness guarantee: if merge produced duplicates, fall back to pure path ---
+    if len(set(merged)) < len(merged):
+        merged = path_discs  # type: ignore[assignment]
+
+    # --- Final fallback: positional index ---
+    final: list[str] = [
+        (m if m else f"variant_{i}") for i, m in enumerate(merged)
+    ]
+
+    # Ensure uniqueness even after all fallbacks (edge-case guard).
+    if len(set(final)) < len(final):
+        final = [f"variant_{i}" for i in range(len(variants))]
+
+    return final
+
+
+def resolve_collisions(operations: list[OperationInfo]) -> list[OperationInfo]:
+    """Assign registered_name and path_variant for all operations in a namespace.
+
+    Non-colliding operations: registered_name == operation_id, path_variant == None.
+    Colliding operations: registered_name == '{discriminator}_{operation_id}',
+                          path_variant == discriminator.
+    Logs one WARNING per collision group at startup.
+    """
+    # Group by operation_id to find collisions.
+    groups: dict[str, list[int]] = defaultdict(list)
+    for idx, op in enumerate(operations):
+        groups[op.operation_id].append(idx)
+
+    for op_id, indices in groups.items():
+        if len(indices) == 1:
+            # No collision — registered_name already set to operation_id via __post_init__.
+            continue
+
+        variants = [operations[i] for i in indices]
+        discriminators = _derive_discriminators(variants)
+
+        LOGGER.warning(
+            "Operation ID collision in namespace '%s': '%s' has %d variants. "
+            "Registered names: %s",
+            variants[0].namespace,
+            op_id,
+            len(variants),
+            [f"{d}_{op_id}" for d in discriminators],
+        )
+
+        for idx_pos, disc in zip(indices, discriminators):
+            op = operations[idx_pos]
+            # dataclass with slots=True: must reassign, not mutate in place via setattr
+            operations[idx_pos] = OperationInfo(
+                namespace=op.namespace,
+                operation_id=op.operation_id,
+                path=op.path,
+                method=op.method,
+                summary=op.summary,
+                description=op.description,
+                tags=op.tags,
+                parameters=op.parameters,
+                code_samples=op.code_samples,
+                request_body=op.request_body,
+                permissions=op.permissions,
+                required_roles=op.required_roles,
+                search_text=op.search_text,
+                registered_name=f"{disc}_{op_id}",
+                path_variant=disc,
+            )
+
+    return operations
 
 
 class OpenAPIParser:
     """Parser for v4 OpenAPI YAML specifications."""
+
     SUPPORTED_METHODS = ("get", "post", "put", "patch", "delete")
 
     def __init__(self, file_path: Path) -> None:
@@ -63,6 +242,8 @@ class OpenAPIParser:
         if not isinstance(paths, dict):
             return []
 
+        tag_descriptions = self._extract_tag_descriptions()
+
         operations: list[OperationInfo] = []
         for path, path_item in paths.items():
             if not isinstance(path_item, dict):
@@ -71,14 +252,33 @@ class OpenAPIParser:
                 op_item = path_item.get(method)
                 if not isinstance(op_item, dict):
                     continue
-                operation = self._build_operation(namespace, path, method, op_item, path_item)
+                operation = self._build_operation(
+                    namespace, path, method, op_item, path_item, tag_descriptions
+                )
                 if operation is not None:
                     operations.append(operation)
-        return operations
+
+        # Second pass: detect collisions and assign registered_name / path_variant.
+        return resolve_collisions(operations)
 
     def extract_get_operations(self, namespace: str) -> list[OperationInfo]:
         """Backward-compatible helper for legacy tests/callers."""
-        return [operation for operation in self.extract_operations(namespace) if operation.method == "GET"]
+        return [op for op in self.extract_operations(namespace) if op.method == "GET"]
+
+    def _extract_tag_descriptions(self) -> dict[str, str]:
+        """Build tag-name -> description map from root-level OpenAPI tags array."""
+        result: dict[str, str] = {}
+        tags = self.spec.get("tags")
+        if not isinstance(tags, list):
+            return result
+        for tag in tags:
+            if not isinstance(tag, dict):
+                continue
+            name = tag.get("name")
+            desc = tag.get("description")
+            if isinstance(name, str) and name:
+                result[name] = desc if isinstance(desc, str) else ""
+        return result
 
     def _build_operation(
         self,
@@ -87,6 +287,7 @@ class OpenAPIParser:
         method: str,
         op_item: dict[str, Any],
         path_item: dict[str, Any],
+        tag_descriptions: dict[str, str],
     ) -> OperationInfo | None:
         operation_id = op_item.get("operationId")
         if not isinstance(operation_id, str) or not operation_id.strip():
@@ -113,6 +314,17 @@ class OpenAPIParser:
         permissions = permissions_value if isinstance(permissions_value, dict) else None
         required_roles = self._extract_required_roles(permissions)
 
+        clean_tags = [tag for tag in tags if isinstance(tag, str)]
+        search_text = self._build_search_text(
+            operation_id=operation_id,
+            path=path,
+            summary=summary,
+            description=description,
+            tags=clean_tags,
+            tag_descriptions=tag_descriptions,
+        )
+
+        # registered_name is set to operation_id here; resolve_collisions will update it.
         return OperationInfo(
             namespace=namespace,
             operation_id=operation_id,
@@ -120,13 +332,46 @@ class OpenAPIParser:
             method=method.upper(),
             summary=summary,
             description=description,
-            tags=[tag for tag in tags if isinstance(tag, str)],
+            tags=clean_tags,
             parameters=parameters,
-            code_samples=[sample for sample in code_samples if isinstance(sample, dict)],
+            code_samples=[s for s in code_samples if isinstance(s, dict)],
             request_body=request_body,
             permissions=permissions,
             required_roles=required_roles,
+            search_text=search_text,
+            registered_name=operation_id,
+            path_variant=None,
         )
+
+    @staticmethod
+    def _build_search_text(
+        operation_id: str,
+        path: str,
+        summary: str,
+        description: str,
+        tags: list[str],
+        tag_descriptions: dict[str, str],
+    ) -> str:
+        """Build enriched searchable text for an operation."""
+        parts: list[str] = [
+            operation_id.lower(),
+            summary.lower(),
+            _camel_to_tokens(operation_id),
+            _path_to_tokens(path),
+        ]
+
+        desc_lower = description.lower()
+        if desc_lower != summary.lower():
+            parts.append(desc_lower)
+
+        for tag in tags:
+            parts.append(tag.lower())
+            parts.append(_camel_to_tokens(tag))
+            tag_desc = tag_descriptions.get(tag, "")
+            if tag_desc:
+                parts.append(tag_desc.lower())
+
+        return " ".join(parts)
 
     def _extract_parameters(
         self,
@@ -202,5 +447,4 @@ class OpenAPIParser:
             name = entry.get("name")
             if isinstance(name, str) and name.strip():
                 roles.append(name.strip())
-        # Keep ordering stable while removing duplicates.
         return list(dict.fromkeys(roles))
