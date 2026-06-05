@@ -55,7 +55,7 @@ The server exposes one `<namespace>_execute` tool per namespace. Namespaces are 
 | `vmm` | `vmm_execute` | VM lifecycle on Nutanix clusters |
 | `volumes` | `volumes_execute` | Volume group management |
 
-> **Disclaimer:** Not all namespaces listed above are available on every Prism Central deployment. Tool availability depends on your PC version and which V4 API namespaces it exposes. Run `nutanix-mcp init` with `PC_HOST` configured — only namespaces reported by your PC will be fetched and registered as tools.
+> **Disclaimer:** Not all namespaces listed above are available on every Prism Central deployment. Tool availability depends on your PC version and which V4 API namespaces it exposes. When `PC_HOST` is configured, only namespaces reported by your PC are downloaded and registered as tools.
 
 ---
 
@@ -81,11 +81,13 @@ python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e .
 cp .env.example .env               # edit with your PC_HOST and credentials
-nutanix-mcp init
-nutanix-mcp run --validate-only
+nutanix-mcp run --validate-only    # verify credentials and config
 ```
 
-For a step-by-step walkthrough including client connection and your first tool call: [quickstart guide](docs/quickstart.md).
+Then add the server to your AI client config (see [Connecting to AI clients](#connecting-to-ai-clients)) and toggle it on.
+**On every toggle, the server automatically downloads fresh API artifacts from your PC** — no separate init step required.
+
+For a step-by-step walkthrough: [quickstart guide](docs/quickstart.md).
 
 ---
 
@@ -112,18 +114,21 @@ Pass `--config-file` to `run` or `serve-stdio` to load settings from a file. Sup
 
 ### `nutanix-mcp init`
 
-Downloads API YAML artifacts for all discovered (or overridden) namespaces. Uses `pc_compatible` mode when `PC_HOST` is set, or `latest_release` mode from the Nutanix developer portal when it is not.
+Downloads API YAML artifacts for namespaces not already present. Skips namespaces whose artifact file already exists. Use this to pre-seed artifacts without toggling the server.
 
 ```bash
 nutanix-mcp init
 ```
 
+> In normal use you do not need to run `init` manually. `serve-stdio` triggers a full refresh automatically on every startup.
+
 ### `nutanix-mcp refresh [--force]`
 
-Refreshes artifacts with backup/restore safety — existing artifacts are preserved if any namespace download fails.
+Deletes all existing artifacts and re-downloads fresh copies from your PC. Use `--force` to bypass version matching and force re-download of every namespace.
 
 ```bash
-nutanix-mcp refresh --force
+nutanix-mcp refresh        # re-download changed namespaces
+nutanix-mcp refresh --force  # force re-download all
 ```
 
 ### `nutanix-mcp run [--validate-only]`
@@ -138,8 +143,11 @@ nutanix-mcp run --validate-only
 
 Starts the MCP stdio server. **Use this command in MCP client configuration.**
 
+On startup, if `PC_HOST` is configured, the server automatically runs a full artifact refresh (equivalent to `nutanix-mcp refresh`) before accepting connections. Downloads run in parallel across all namespaces (~15–20 seconds on first run).
+
 ```bash
 nutanix-mcp serve-stdio
+nutanix-mcp serve-stdio --skip-auto-refresh  # use existing artifacts, skip download
 ```
 
 ---

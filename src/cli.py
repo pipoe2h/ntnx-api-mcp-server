@@ -73,9 +73,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Run server startup YAML loading flow",
     )
     run_parser.add_argument("--validate-only", action="store_true")
-    subparsers.add_parser(
+    serve_stdio_parser = subparsers.add_parser(
         "serve-stdio",
         help="Run MCP stdio server for Cursor/Claude/Inspector clients",
+    )
+    serve_stdio_parser.add_argument(
+        "--skip-auto-refresh",
+        action="store_true",
+        help="Skip automatic artifact download on startup (offline / CI use)",
     )
     return parser
 
@@ -225,6 +230,22 @@ def main() -> None:
         return
 
     if command == "serve-stdio":
+        skip_refresh = bool(getattr(args, "skip_auto_refresh", False))
+        if not skip_refresh and settings.pc_host:
+            # Always do a full refresh on startup — delete existing artifacts and
+            # re-download fresh from the PC. Equivalent to nutanix-mcp refresh.
+            LOGGER.info(
+                "event=artifact_refresh_started artifacts_dir=%s",
+                settings.artifacts_dir,
+            )
+            from .pull_from_developers_api import download_yamls
+            summary = download_yamls(settings=settings, refresh=True, force=False)
+            LOGGER.info(
+                "event=artifact_refresh_completed success=%s failed=%s skipped=%s",
+                summary.success,
+                summary.failed,
+                summary.skipped,
+            )
         serve_stdio(settings)
         return
 

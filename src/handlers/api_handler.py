@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 from urllib.parse import quote
+from uuid import uuid4
 
 import httpx
 
@@ -33,6 +34,15 @@ class APIHandler:
         normalized_headers = self._normalize_headers(headers or {})
         auth, auth_headers = build_auth_context(self.settings)
         normalized_headers.update(auth_headers)
+        # Idempotency header required by Nutanix V4 APIs — auto-generated per call.
+        if "NTNX-Request-Id" not in normalized_headers:
+            normalized_headers["NTNX-Request-Id"] = str(uuid4())
+        # Auto-fetch ETag for mutating operations that require optimistic locking.
+        upper_method = method.upper()
+        if upper_method in {"PUT", "PATCH", "DELETE"} and "If-Match" not in normalized_headers:
+            etag = self._fetch_etag(resolved_path, auth, auth_headers)
+            if etag:
+                normalized_headers["If-Match"] = etag
         url = f"{self.settings.pc_base_url}{resolved_path}"
         with httpx.Client(
             verify=not self.settings.pc_insecure,
@@ -40,7 +50,7 @@ class APIHandler:
             auth=auth,
         ) as client:
             response = client.request(
-                method.upper(),
+                upper_method,
                 url,
                 params=normalized_query,
                 headers=normalized_headers,
@@ -48,22 +58,44 @@ class APIHandler:
             )
         return self._as_result(response)
 
-    def execute_get_request(
-        self,
-        path: str,
-        path_params: dict[str, Any] | None = None,
-        query_params: dict[str, Any] | None = None,
-        headers: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        """Backward-compatible GET helper."""
-        return self.execute_request(
-            method="GET",
-            path=path,
-            path_params=path_params,
-            query_params=query_params,
-            headers=headers,
-            body=None,
-        )
+    def _fetch_etag(
+        self, resolved_path: str, auth: Any, auth_headers: dict[str, str]
+    ) -> str | None:
+        """GET the resource and return its ETag for optimistic locking.
+
+        Action endpoints (/$actions/) do not use ETags — skipped.
+        Checks both the response header and $reserved.etag in the body
+        (some Nutanix APIs embed it in the body rather than returning a header).
+        Returns None on any failure so the caller proceeds without If-Match.
+        """
+        if "/$actions/" in resolved_path:
+            return None
+        url = f"{self.settings.pc_base_url}{resolved_path}"
+        get_headers = dict(auth_headers)
+        get_headers["NTNX-Request-Id"] = str(uuid4())
+        try:
+            with httpx.Client(
+                verify=not self.settings.pc_insecure,
+                timeout=self.settings.startup_timeout_seconds,
+                auth=auth,
+            ) as client:
+                response = client.get(url, headers=get_headers)
+            etag = response.headers.get("ETag")
+            if not etag and response.status_code == 200:
+                # Fallback: some Nutanix APIs embed ETag in $reserved.etag in the body.
+                try:
+                    body = response.json()
+                    if isinstance(body, dict):
+                        inner = body.get("data", body)
+                        if isinstance(inner, dict):
+                            reserved = inner.get("$reserved", {})
+                            if isinstance(reserved, dict):
+                                etag = reserved.get("etag")
+                except ValueError:
+                    pass
+            return etag
+        except (httpx.HTTPError, httpx.NetworkError, ValueError):
+            return None
 
     @staticmethod
     def _resolve_path(path: str, path_params: dict[str, Any]) -> str:

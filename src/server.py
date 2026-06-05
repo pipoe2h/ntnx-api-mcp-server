@@ -23,7 +23,8 @@ class StartupLoadResult:
     operations: list[OperationInfo]
     namespace_tools: list[dict[str, Any]]
     discovery_tools: list[dict[str, Any]]
-    operation_index: dict[str, dict[str, Any]]
+    # Merged component schemas from all loaded YAMLs — used for runtime $ref resolution.
+    component_schemas: dict[str, Any]
 
 
 def select_artifact_source(settings: Settings) -> tuple[str, Path]:
@@ -74,17 +75,19 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
     source_label, source_dir = select_artifact_source(settings)
     files = list_yaml_artifacts(source_dir)
     operations: list[OperationInfo] = []
+    component_schemas: dict[str, Any] = {}
 
     for file_path in files:
         parser = OpenAPIParser(file_path)
         parser.load()
         namespace = infer_namespace(file_path)
         operations.extend(parser.extract_operations(namespace=namespace))
+        # Merge component schemas — namespace-qualified names prevent collisions.
+        component_schemas.update(parser.component_schemas)
 
-    generator = ToolGenerator(operations)
+    generator = ToolGenerator(operations, component_schemas=component_schemas)
     namespace_tools = generator.build_namespace_tools()
     discovery_tools = generator.build_discovery_tools()
-    operation_index = generator.build_operation_index()
 
     return StartupLoadResult(
         artifacts_source=source_label,
@@ -93,7 +96,7 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
         operations=operations,
         namespace_tools=namespace_tools,
         discovery_tools=discovery_tools,
-        operation_index=operation_index,
+        component_schemas=component_schemas,
     )
 
 
