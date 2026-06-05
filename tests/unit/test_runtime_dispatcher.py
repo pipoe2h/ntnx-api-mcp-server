@@ -34,7 +34,7 @@ def _build_dispatcher() -> RuntimeToolDispatcher:
         operations=[operation],
         namespace_tools=[],
         discovery_tools=[],
-        component_schemas={},
+        operation_index={},
     )
     settings = Settings(pc_host="127.0.0.1", pc_port=9440)
     return RuntimeToolDispatcher(settings=settings, load_result=load_result)
@@ -122,7 +122,7 @@ def test_namespace_execute_for_post_with_request_body(monkeypatch) -> None:  # t
         operations=[operation],
         namespace_tools=[],
         discovery_tools=[],
-        component_schemas={},
+        operation_index={},
     )
     dispatcher = RuntimeToolDispatcher(
         settings=Settings(pc_host="127.0.0.1", pc_port=9440),

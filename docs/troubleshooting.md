@@ -427,7 +427,7 @@ Always call `listOperations` as the first step when writing agentic workflows th
    ```bash
    nutanix-mcp refresh --force
    ```
-3. If the YAML download still skips the namespace, check the server startup logs for `skipped_reasons`. A `not_found` reason means the Nutanix developer portal did not list a YAML for that namespace/version combination.
+3. If the YAML download still skips the namespace, check the `init` output for `skipped_reasons`. A `not_found` reason means the Nutanix developer portal did not list a YAML for that namespace/version combination.
 
 ---
 
@@ -620,21 +620,17 @@ Missing required path parameters: extId
 **Cause:** No YAML artifacts have been downloaded, so no namespace `_execute` tools were registered. The 4 discovery tools (`listOperations`, `getOperationSchema`, `getCodeSample`, `getOperationPermissions`) are always registered regardless of artifacts.
 
 **Fix:**
-
-When `PC_HOST` is configured, `serve-stdio` automatically downloads artifacts on startup. If tools are still missing after toggling:
-
-1. Check `PC_HOST`, credentials, and network access in your `.env` or client config.
-2. Toggle the server off and on — the startup refresh re-attempts the download and logs any failures.
-3. To manually trigger a download:
+1. Run `init` to download artifacts:
    ```bash
-   nutanix-mcp refresh
+   nutanix-mcp init
    ```
-4. Verify artifacts were downloaded:
+   With `PC_HOST` set, this downloads version-compatible YAMLs from the Nutanix developer portal. Without `PC_HOST`, it downloads the latest release versions.
+2. Verify artifacts were downloaded:
    ```bash
    ls artifacts/
-   # Expected: dataprotection-v4.x-all-documentation.yaml, vmm-v4.x-all-documentation.yaml, ...
+   # Expected: dataprotection-v4.0-all-documentation.yaml, lifecycle-v4.0-all-documentation.yaml, ...
    ```
-5. Toggle the server off and on so the server reloads with new artifacts.
+3. Restart the AI client so the server reloads with new artifacts.
 
 ---
 

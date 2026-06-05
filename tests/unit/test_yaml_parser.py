@@ -7,7 +7,7 @@ from pathlib import Path
 from src.parsers import OpenAPIParser
 
 
-def test_extract_operations_reads_path_and_operation_parameters(tmp_path: Path) -> None:
+def test_extract_get_operations_reads_path_and_operation_parameters(tmp_path: Path) -> None:
     yaml_text = """
 openapi: 3.0.0
 paths:
@@ -46,7 +46,7 @@ paths:
 
     parser = OpenAPIParser(file_path)
     parser.load()
-    operations = [op for op in parser.extract_operations(namespace="vmm") if op.method == "GET"]
+    operations = parser.extract_get_operations(namespace="vmm")
 
     assert len(operations) == 1
     operation = operations[0]

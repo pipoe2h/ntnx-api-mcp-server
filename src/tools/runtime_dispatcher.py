@@ -8,8 +8,6 @@ from typing import Any, Protocol
 
 from src.config import Settings
 from src.generators import ToolContractError, ToolGenerator
-from src.generators.payload_validator import validate_payload
-from src.generators.schema_resolver import resolve_request_body_schema
 from src.handlers import APIHandler
 from src.parsers import OperationInfo
 
@@ -50,7 +48,6 @@ class RuntimeLoadResult(Protocol):
     operations: list[OperationInfo]
     namespace_tools: list[dict[str, Any]]
     discovery_tools: list[dict[str, Any]]
-    component_schemas: dict[str, Any]
 
 
 class RuntimeToolDispatcher:
@@ -59,10 +56,7 @@ class RuntimeToolDispatcher:
     def __init__(self, settings: Settings, load_result: RuntimeLoadResult) -> None:
         self.settings = settings
         self.load_result = load_result
-        self.generator = ToolGenerator(
-            load_result.operations,
-            component_schemas=load_result.component_schemas,
-        )
+        self.generator = ToolGenerator(load_result.operations)
         self.api_handler = APIHandler(settings)
 
     def list_tools(self) -> list[dict[str, Any]]:
@@ -227,29 +221,6 @@ class RuntimeToolDispatcher:
                 tool=f"{namespace}_execute",
                 error={"code": "invalid_arguments", "detail": "'request_body' must be an object."},
             )
-
-        # Server-side payload validation against the resolved schema.
-        if request_body and operation.request_body and self.load_result.component_schemas:
-            resolved = resolve_request_body_schema(
-                operation.request_body, self.load_result.component_schemas
-            )
-            if resolved:
-                field_errors = validate_payload(request_body, resolved)
-                if field_errors:
-                    return ToolDispatchResult(
-                        ok=False,
-                        tool=f"{namespace}_execute",
-                        error={
-                            "code": "invalid_request_body",
-                            "operation": operation_id,
-                            "field_errors": field_errors,
-                            "hint": (
-                                f"Correct the listed fields and retry "
-                                f"{namespace}_execute with operation='{operation_id}'. "
-                                "No re-discovery needed."
-                            ),
-                        },
-                    )
 
         try:
             payload = self.api_handler.execute_request(

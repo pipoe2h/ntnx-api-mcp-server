@@ -89,8 +89,7 @@ def test_execute_get_request_returns_deterministic_http_error(monkeypatch) -> No
         lambda **_kwargs: _FakeClient(_request_impl),
     )
 
-    result = APIHandler(_settings()).execute_request(
-        method="GET",
+    result = APIHandler(_settings()).execute_get_request(
         path="/vms/{vmId}",
         path_params={"vmId": "123"},
         query_params={"$limit": 10, "$expand": ["nic", "disk"], "skipNone": None},
@@ -111,8 +110,7 @@ def test_execute_get_request_maps_timeout_error(monkeypatch) -> None:  # type: i
     )
 
     try:
-        APIHandler(_settings()).execute_request(
-            method="GET",
+        APIHandler(_settings()).execute_get_request(
             path="/clusters",
             path_params={},
             query_params={},

@@ -5,10 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+import shutil
 import time
 from typing import Any
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import httpx
 import yaml
@@ -214,20 +213,56 @@ def _download_yaml(settings: Settings, namespace: str, version: str) -> str:
 
 
 def _validate_and_save_yaml(content: str, output_path: Path) -> bool:
-    """Validate YAML in-memory before writing to disk."""
+    """Validate YAML before keeping file on disk."""
+    output_path.write_text(content, encoding="utf-8")
     try:
-        loaded = yaml.safe_load(content)
+        with output_path.open("r", encoding="utf-8") as handle:
+            loaded = yaml.safe_load(handle)
     except yaml.YAMLError:
+        output_path.unlink(missing_ok=True)
         return False
     if loaded is None:
+        output_path.unlink(missing_ok=True)
         return False
-    output_path.write_text(content, encoding="utf-8")
     return True
 
 
 def _clear_previous_artifacts(artifacts_dir: Path) -> None:
     for file_path in artifacts_dir.glob(f"*{ARTIFACT_FILENAME_SUFFIX}"):
         file_path.unlink(missing_ok=True)
+
+
+def _namespace_from_artifact_filename(file_name: str) -> str:
+    dash_index = file_name.find("-")
+    if dash_index <= 0:
+        return "unknown"
+    return file_name[:dash_index]
+
+
+def _prepare_refresh_backup(artifacts_dir: Path) -> tuple[Path, list[Path]]:
+    existing_files = sorted(artifacts_dir.glob(f"*{ARTIFACT_FILENAME_SUFFIX}"))
+    backup_dir = artifacts_dir / ".refresh_backup"
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    for file_path in existing_files:
+        shutil.move(str(file_path), str(backup_dir / file_path.name))
+    return backup_dir, existing_files
+
+
+def _restore_backup_artifacts(
+    artifacts_dir: Path,
+    backup_dir: Path,
+    processed_namespaces: set[str],
+) -> int:
+    restored = 0
+    for backup_file in backup_dir.glob(f"*{ARTIFACT_FILENAME_SUFFIX}"):
+        namespace = _namespace_from_artifact_filename(backup_file.name)
+        # If a namespace was not refreshed successfully this cycle, keep last-known-good artifact.
+        if namespace not in processed_namespaces:
+            shutil.move(str(backup_file), str(artifacts_dir / backup_file.name))
+            restored += 1
+    return restored
 
 
 def download_yamls(
@@ -254,77 +289,109 @@ def download_yamls(
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     started = time.perf_counter()
+    backup_dir: Path | None = None
+    backup_files: list[Path] = []
     if refresh:
-        _clear_previous_artifacts(artifacts_dir)
+        backup_dir, backup_files = _prepare_refresh_backup(artifacts_dir)
 
     summary = DownloadSummary()
     summary.artifact_mode = artifact_mode
     namespaces = get_namespaces(settings)
     summary.discovered = len(namespaces)
-
-    def _process_namespace(namespace: str) -> dict:
-        """Download one namespace — runs in a thread pool worker."""
-        ns_started = time.perf_counter()
+    processed_namespaces: set[str] = set()
+    for namespace in namespaces:
+        namespace_started = time.perf_counter()
+        summary.processed += 1
         try:
             if settings.pc_host:
                 version = get_namespace_version(settings, namespace)
             else:
                 version = get_latest_release_version(settings, namespace)
             if not version:
-                return {"namespace": namespace, "status": "skipped",
-                        "reason": "missing_version_or_namespace",
-                        "duration_ms": int((time.perf_counter() - ns_started) * 1000)}
+                summary.add_skipped("missing_version_or_namespace")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="skipped",
+                    reason="missing_version_or_namespace",
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
+                continue
 
             output_path = artifacts_dir / f"{namespace}-{version}{ARTIFACT_FILENAME_SUFFIX}"
             if output_path.exists() and not force:
-                return {"namespace": namespace, "status": "skipped", "reason": "already_exists",
-                        "version": version, "artifact": str(output_path),
-                        "duration_ms": int((time.perf_counter() - ns_started) * 1000)}
+                summary.add_skipped("already_exists")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="skipped",
+                    reason="already_exists",
+                    version=version,
+                    artifact=str(output_path),
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
+                continue
 
-            yaml_content = _download_yaml(settings, namespace, version)
-            if not _validate_and_save_yaml(yaml_content, output_path):
-                return {"namespace": namespace, "status": "failed",
-                        "reason": "yaml_validation_failed", "version": version,
-                        "artifact": str(output_path),
-                        "duration_ms": int((time.perf_counter() - ns_started) * 1000)}
-
-            return {"namespace": namespace, "status": "success", "version": version,
-                    "artifact": str(output_path),
-                    "duration_ms": int((time.perf_counter() - ns_started) * 1000)}
-
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            return {"namespace": namespace,
-                    "status": "skipped" if status_code == 404 else "failed",
-                    "reason": "not_found" if status_code == 404 else "http_error",
-                    "duration_ms": int((time.perf_counter() - ns_started) * 1000)}
-        except Exception as exc:
-            return {"namespace": namespace, "status": "failed",
-                    "reason": f"unexpected_error:{type(exc).__name__}",
-                    "duration_ms": int((time.perf_counter() - ns_started) * 1000)}
-
-    # Download all namespaces in parallel — reduces wall-clock time from ~90s to ~15s.
-    max_workers = min(len(namespaces), 10)
-    with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="ns-dl") as pool:
-        futures = {pool.submit(_process_namespace, ns): ns for ns in namespaces}
-        for future in as_completed(futures):
-            result = future.result()
-            summary.processed += 1
-            ns_status = result["status"]
-            if ns_status == "success":
-                summary.success += 1
-            elif ns_status == "skipped":
-                summary.add_skipped(result.get("reason", "unknown"))
-            else:
-                summary.add_failed(result.get("reason", "unknown"))
+            content = _download_yaml(settings, namespace, version)
+            if not _validate_and_save_yaml(content, output_path):
+                summary.add_failed("yaml_validation_failed")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="failed",
+                    reason="yaml_validation_failed",
+                    version=version,
+                    artifact=str(output_path),
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
+                continue
+            processed_namespaces.add(namespace)
+            summary.success += 1
             summary.add_namespace_result(
-                namespace=result["namespace"],
-                status=ns_status,
-                reason=result.get("reason"),
-                version=result.get("version"),
-                artifact=result.get("artifact"),
-                duration_ms=result.get("duration_ms"),
+                namespace=namespace,
+                status="success",
+                version=version,
+                artifact=str(output_path),
+                duration_ms=int((time.perf_counter() - namespace_started) * 1000),
             )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                summary.add_skipped("not_found")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="skipped",
+                    reason="not_found",
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
+            else:
+                summary.add_failed("http_error")
+                summary.add_namespace_result(
+                    namespace=namespace,
+                    status="failed",
+                    reason="http_error",
+                    duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+                )
+        except Exception as exc:
+            summary.add_failed("unexpected_error")
+            summary.add_namespace_result(
+                namespace=namespace,
+                status="failed",
+                reason=f"unexpected_error:{type(exc).__name__}",
+                duration_ms=int((time.perf_counter() - namespace_started) * 1000),
+            )
+
+    if refresh and backup_dir is not None:
+        summary.deleted_artifacts = len(backup_files)
+        # If refresh had no successful downloads, restore everything for offline resilience.
+        if summary.success == 0:
+            for backup_file in backup_dir.glob(f"*{ARTIFACT_FILENAME_SUFFIX}"):
+                shutil.move(str(backup_file), str(artifacts_dir / backup_file.name))
+                summary.restored_artifacts += 1
+        else:
+            # Keep prior artifacts for namespaces not refreshed successfully.
+            summary.restored_artifacts += _restore_backup_artifacts(
+                artifacts_dir=artifacts_dir,
+                backup_dir=backup_dir,
+                processed_namespaces=processed_namespaces,
+            )
+        shutil.rmtree(backup_dir, ignore_errors=True)
 
     summary.duration_ms = int((time.perf_counter() - started) * 1000)
     LOGGER.info(

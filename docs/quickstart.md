@@ -69,9 +69,30 @@ For all configuration options: [configuration reference](configuration.md).
 
 ---
 
-## Step 3: Validate your configuration
+## Step 3: Download API artifacts and validate
 
-Verify that your credentials and PC connection are correct before connecting an AI client:
+Download OpenAPI specs from your Prism Central:
+
+```bash
+nutanix-mcp init
+```
+
+Expected output:
+
+```json
+{
+  "mode": "init",
+  "artifact_mode": "pc_compatible",
+  "discovered": 19,
+  "processed": 19,
+  "success": 4,
+  "skipped": 15,
+  "failed": 0,
+  "duration_ms": 1234
+}
+```
+
+Validate your configuration:
 
 ```bash
 nutanix-mcp run --validate-only
@@ -92,9 +113,7 @@ Expected output (successful):
 }
 ```
 
-If you see an error, fix the reported issue before proceeding. For details: [troubleshooting guide](troubleshooting.md).
-
-> **No separate download step needed.** When you toggle the server on in your AI client, `nutanix-mcp serve-stdio` automatically downloads fresh API artifacts from your PC before accepting connections. This takes 15–20 seconds on the first run. If you prefer to pre-download manually, run `nutanix-mcp init` first.
+If you see `"startup_ready": false` with an `"error"` key, fix the reported issue before proceeding. For error details: [troubleshooting guide](troubleshooting.md).
 
 > The MCP server (`nutanix-mcp serve-stdio`) is launched automatically by your AI client in steps 4 and 5 — do not run it manually here.
 
@@ -224,7 +243,7 @@ Expected response shape:
 
 > `extId` is the Nutanix V4 API unique identifier for each resource — a UUID string used to reference specific objects in subsequent operations.
 
-> If the AI reports `unknown_namespace: vmm`, the vmm namespace was not available on your PC at startup. Toggle the server off and on again while connected to your PC to trigger a fresh artifact download.
+> If the AI reports `unknown_namespace: vmm`, your PC did not serve vmm artifacts during `init`. Re-run `nutanix-mcp init` while connected to PC, or check that vmm operations were downloaded.
 
 ---
 

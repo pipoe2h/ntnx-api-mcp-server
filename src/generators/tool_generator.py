@@ -7,8 +7,6 @@ import re
 from typing import Any
 
 from src.generators.models import OperationDiscoveryItem, ToolDefinition, ToolInputSchema
-from src.generators.payload_validator import validate_payload
-from src.generators.schema_resolver import resolve_request_body_schema
 from src.parsers import OperationInfo
 from src.parsers.yaml_parser import _camel_to_tokens
 
@@ -103,13 +101,8 @@ class ToolContractError(ValueError):
 class ToolGenerator:
     """Generate namespace-level tool schemas from parsed operations."""
 
-    def __init__(
-        self,
-        operations: list[OperationInfo],
-        component_schemas: dict[str, Any] | None = None,
-    ) -> None:
+    def __init__(self, operations: list[OperationInfo]) -> None:
         self.operations = operations
-        self.component_schemas: dict[str, Any] = component_schemas or {}
 
     def group_by_namespace(self) -> dict[str, list[OperationInfo]]:
         """Group parsed operations by namespace."""
@@ -128,10 +121,7 @@ class ToolGenerator:
                 name=f"{namespace}_execute",
                 description=(
                     f"Execute operations from the {namespace} namespace. "
-                    "Use the operation field to select the exact API operation. "
-                    "For POST/PUT/PATCH operations, pass the request body as 'request_body'. "
-                    "Pass operation-specific path and query parameters (e.g. extId, vmExtId) "
-                    "as direct top-level keyword arguments alongside 'operation'."
+                    "Use the operation field to select the exact API operation."
                 ),
                 inputSchema=ToolInputSchema(
                     properties={
@@ -271,49 +261,11 @@ class ToolGenerator:
         return [item.model_dump() for _, _, item in page]
 
     def get_operation_schema(self, operation_id: str) -> dict[str, Any]:
-        """Return detailed schema dictionary for an operation id.
-
-        Includes a resolved request_body_schema field when the operation has a
-        request body with $ref types — resolved from the in-memory component schemas.
-        """
-        operation = next(
-            (op for op in self.operations if op.registered_name == operation_id),
-            None,
-        )
-        if operation is None:
+        """Return detailed schema dictionary for an operation id."""
+        operation_index = self.build_operation_index()
+        if operation_id not in operation_index:
             raise KeyError(f"Unknown operation id: {operation_id}")
-        schema = asdict(operation)
-        raw_rb = schema.get("request_body")
-        if raw_rb and self.component_schemas:
-            schema["request_body_schema"] = resolve_request_body_schema(
-                raw_rb, self.component_schemas
-            )
-        else:
-            schema["request_body_schema"] = None
-        # Surface path/query parameters as a structured summary so the LLM knows
-        # which top-level keyword arguments to pass in the execute tool call.
-        raw_params = schema.get("parameters", [])
-        schema["parameter_summary"] = [
-            {
-                "name": p.get("name"),
-                "location": p.get("location"),
-                "required": p.get("required", False),
-                "type": p.get("schema", {}).get("type", "string"),
-                "description": p.get("description"),
-            }
-            for p in raw_params
-            if isinstance(p, dict) and p.get("location") in ("path", "query")
-        ]
-        # List immutable fields (readOnly in spec) so the LLM knows which fields
-        # must be echoed back unchanged from GET but must NOT be modified.
-        # For Nutanix full-PUT operations: include these from GET, do not change them.
-        rb_schema = schema.get("request_body_schema")
-        schema["immutable_fields"] = [
-            fname
-            for fname, fprop in (rb_schema or {}).get("properties", {}).items()
-            if isinstance(fprop, dict) and fprop.get("readOnly")
-        ]
-        return schema
+        return operation_index[operation_id]
 
     def get_code_sample(self, operation_id: str, language: str) -> dict[str, Any] | None:
         """Return the best matching code sample for operation/language."""
@@ -403,4 +355,3 @@ class ToolGenerator:
                     code="invalid_parameters",
                     detail="request_body must be an object when provided.",
                 )
-

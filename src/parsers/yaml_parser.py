@@ -224,7 +224,6 @@ class OpenAPIParser:
     def __init__(self, file_path: Path) -> None:
         self.file_path = file_path
         self.spec: dict[str, Any] = {}
-        self.component_schemas: dict[str, Any] = {}
 
     def load(self) -> dict[str, Any]:
         """Load and return OpenAPI document."""
@@ -233,7 +232,6 @@ class OpenAPIParser:
         if not isinstance(loaded, dict):
             raise ValueError(f"YAML root must be an object in {self.file_path}")
         self.spec = loaded
-        self.component_schemas = loaded.get("components", {}).get("schemas", {})
         return self.spec
 
     def extract_operations(self, namespace: str) -> list[OperationInfo]:
@@ -262,6 +260,10 @@ class OpenAPIParser:
 
         # Second pass: detect collisions and assign registered_name / path_variant.
         return resolve_collisions(operations)
+
+    def extract_get_operations(self, namespace: str) -> list[OperationInfo]:
+        """Backward-compatible helper for legacy tests/callers."""
+        return [op for op in self.extract_operations(namespace) if op.method == "GET"]
 
     def _extract_tag_descriptions(self) -> dict[str, str]:
         """Build tag-name -> description map from root-level OpenAPI tags array."""
@@ -406,9 +408,6 @@ class OpenAPIParser:
             schema_value = value.get("schema")
             schema = schema_value if isinstance(schema_value, dict) else {}
             description = value.get("description") if isinstance(value.get("description"), str) else None
-            # Skip headers that the server injects automatically.
-            if location == "header" and name in OpenAPIParser._SERVER_MANAGED_HEADERS:
-                continue
             extracted.append(
                 ParameterInfo(
                     name=name,
@@ -432,9 +431,6 @@ class OpenAPIParser:
                 return None
             target = target.get(token)
         return target if isinstance(target, dict) else None
-
-    # Headers the server injects automatically — never exposed to the LLM.
-    _SERVER_MANAGED_HEADERS: frozenset[str] = frozenset({"NTNX-Request-Id", "If-Match"})
 
     @staticmethod
     def _extract_required_roles(permissions: dict[str, Any] | None) -> list[str]:
