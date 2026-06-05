@@ -35,23 +35,23 @@ The server exposes one `<namespace>_execute` tool per namespace. Namespaces are 
 
 | Namespace | Executor tool | Coverage |
 |---|---|---|
-| `aiops` | `aiops_execute` | Analysis, reporting, capacity planning, VM rightsizing, automation playbooks |
-| `clustermgmt` | `clustermgmt_execute` | Hosts, clusters, and Nutanix infrastructure |
-| `datapolicies` | `datapolicies_execute` | Disaster recovery and storage policies |
-| `dataprotection` | `dataprotection_execute` | Consistency groups, recovery points, protection and recovery plans |
-| `files` | `files_execute` | Virtual file servers, shares, storage provisioning, security controls |
-| `iam` | `iam_execute` | Users, roles, and access policies |
+| `aiops` | `aiops_execute` | Analysis, reporting, capacity planning, VM rightsizing, simulations |
+| `clustermgmt` | `clustermgmt_execute` | Hosts, clusters, bmc, cluster profiles, SSL certificates, storage containers |
+| `datapolicies` | `datapolicies_execute` | Protection policies, Disaster recovery plans and storage policies |
+| `dataprotection` | `dataprotection_execute` | Consistency groups, recovery points, protection and recovery plans actions |
+| `files` | `files_execute` | Virtual file servers, shares, storage provisioning, security controls,  |
+| `iam` | `iam_execute` | Users, roles, identiy providers, service accounts (API KEYs) and access policies |
 | `licensing` | `licensing_execute` | License management, compliance, and feature entitlements |
 | `lifecycle` | `lifecycle_execute` | Infrastructure, software, and firmware upgrades |
 | `microseg` | `microseg_execute` | Network security policies, service groups, address groups |
 | `monitoring` | `monitoring_execute` | Alerts, alert policies, events, and audits |
 | `multidomain` | `multidomain_execute` | Cross-domain services across on-prem, NC2, and edge |
-| `networking` | `networking_execute` | AHV networking, advanced networking configuration |
+| `networking` | `networking_execute` | AHV networking, advanced networking configuration like BGP,vSswitch,VPC and subnet management |
 | `objects` | `objects_execute` | Nutanix Object Store service |
 | `opsmgmt` | `opsmgmt_execute` | Shared platform functionality for aiops, devops, secops, finops |
-| `prism` | `prism_execute` | Tasks, categories, batch operations, domain managers, backup targets |
+| `prism` | `prism_execute` | Tasks, categories, batch operations, domain managers, backup targets, external storages |
 | `security` | `security_execute` | Encryption, certificates, platform hardening |
-| `storage` | `storage_execute` | Volume groups and storage containers |
+| `storage` | `storage_execute` | Volume groups and  iSCSI client management |
 | `vmm` | `vmm_execute` | VM lifecycle on Nutanix clusters |
 | `volumes` | `volumes_execute` | Volume group management |
 
