@@ -45,15 +45,15 @@ def test_validate_operation_request_accepts_allowed_fields() -> None:
     )
 
 
-def test_validate_operation_request_rejects_unknown_fields() -> None:
+def test_validate_operation_request_accepts_extra_fields() -> None:
+    # With additionalProperties:true on namespace tools, unknown keys are silently ignored.
+    # The LLM is expected to supply only keys it learned from getOperationSchema.
     generator = ToolGenerator([_operation()])
-    with pytest.raises(ToolContractError) as exc:
-        generator.validate_namespace_operation_request(
-            namespace="vmm",
-            operation="getVmById",
-            request_payload={"operation": "getVmById", "unknownField": "x"},
-        )
-    assert exc.value.code == "invalid_parameters"
+    generator.validate_namespace_operation_request(
+        namespace="vmm",
+        operation="getVmById",
+        request_payload={"operation": "getVmById", "someExtraField": "x"},
+    )  # must NOT raise
 
 
 def test_validate_operation_request_rejects_non_object_body() -> None:

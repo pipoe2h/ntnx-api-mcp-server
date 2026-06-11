@@ -27,6 +27,7 @@ def _build_dispatcher() -> RuntimeToolDispatcher:
         },
         required_roles=["Prism Viewer", "Prism Admin"],
     )
+    from src.generators import ToolGenerator
     load_result = StartupLoadResult(
         artifacts_source="runtime",
         artifact_directory=Settings().artifacts_dir,
@@ -35,6 +36,7 @@ def _build_dispatcher() -> RuntimeToolDispatcher:
         namespace_tools=[],
         discovery_tools=[],
         operation_index={},
+        generator=ToolGenerator([operation], schemas={}, namespace_metadata={}),
     )
     settings = Settings(pc_host="127.0.0.1", pc_port=9440)
     return RuntimeToolDispatcher(settings=settings, load_result=load_result)
@@ -52,7 +54,10 @@ def test_get_operation_schema_helper() -> None:
     dispatcher = _build_dispatcher()
     result = dispatcher.call_tool("getOperationSchema", {"operation": "getVmById"})
     assert result.ok is True
-    assert result.payload["operation_id"] == "getVmById"
+    # New structured shape: 'operation' holds the registered name.
+    assert result.payload["operation"] == "getVmById"
+    assert result.payload["method"] == "GET"
+    assert result.payload["path"] == "/vms/{vmId}"
 
 
 def test_get_code_sample_helper() -> None:
@@ -115,6 +120,7 @@ def test_namespace_execute_for_post_with_request_body(monkeypatch) -> None:  # t
         description="Create VM",
         request_body={"content": {"application/json": {"schema": {"type": "object"}}}},
     )
+    from src.generators import ToolGenerator
     load_result = StartupLoadResult(
         artifacts_source="runtime",
         artifact_directory=Settings().artifacts_dir,
@@ -123,6 +129,7 @@ def test_namespace_execute_for_post_with_request_body(monkeypatch) -> None:  # t
         namespace_tools=[],
         discovery_tools=[],
         operation_index={},
+        generator=ToolGenerator([operation], schemas={}, namespace_metadata={}),
     )
     dispatcher = RuntimeToolDispatcher(
         settings=Settings(pc_host="127.0.0.1", pc_port=9440),

@@ -10,11 +10,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class ToolInputSchema(BaseModel):
     """JSON schema payload used by MCP tool definitions."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     type: Literal["object"] = "object"
     properties: dict[str, dict[str, Any]] = Field(default_factory=dict)
     required: list[str] = Field(default_factory=list)
+    additional_properties: bool = Field(default=False, alias="additionalProperties")
 
 
 class ToolDefinition(BaseModel):

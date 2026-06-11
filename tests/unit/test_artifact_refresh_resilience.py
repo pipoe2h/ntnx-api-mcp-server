@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pull_from_developers_api as fetcher
+from src import pull_from_developers_api as fetcher
 from src.config import Settings
 from src.config.constants import ARTIFACT_FILENAME_SUFFIX
 

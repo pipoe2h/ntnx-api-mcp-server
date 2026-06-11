@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 from urllib.parse import quote
 
@@ -33,6 +34,8 @@ class APIHandler:
         normalized_headers = self._normalize_headers(headers or {})
         auth, auth_headers = build_auth_context(self.settings)
         normalized_headers.update(auth_headers)
+        # Auto-inject a unique request ID; LLM-supplied value is respected if already present.
+        normalized_headers.setdefault("NTNX-Request-Id", str(uuid.uuid4()))
         url = f"{self.settings.pc_base_url}{resolved_path}"
         with httpx.Client(
             verify=not self.settings.pc_insecure,
@@ -46,7 +49,14 @@ class APIHandler:
                 headers=normalized_headers,
                 json=body if body is not None else None,
             )
-        return self._as_result(response)
+        result = self._as_result(response)
+        if method.upper() in ("PUT", "PATCH") and response.status_code in range(400, 500):
+            result["_put_hint"] = (
+                "PUT/PATCH requires the complete resource body. "
+                "GET the resource, clone its full response body, modify only the changed fields, "
+                "strip '_etag' and 'links', then retry with the cloned body."
+            )
+        return result
 
     def execute_get_request(
         self,
@@ -129,4 +139,9 @@ class APIHandler:
             payload = response.json()
         except ValueError:
             payload = {"data": response.text}
-        return payload if isinstance(payload, dict) else {"data": payload}
+        result = payload if isinstance(payload, dict) else {"data": payload}
+        # Surface ETag so the LLM can use it as If-Match on subsequent PUT/PATCH calls.
+        etag = response.headers.get("etag") or response.headers.get("ETag")
+        if etag:
+            result["_etag"] = etag
+        return result

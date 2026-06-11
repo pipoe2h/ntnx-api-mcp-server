@@ -48,6 +48,7 @@ class RuntimeLoadResult(Protocol):
     operations: list[OperationInfo]
     namespace_tools: list[dict[str, Any]]
     discovery_tools: list[dict[str, Any]]
+    generator: ToolGenerator
 
 
 class RuntimeToolDispatcher:
@@ -56,7 +57,7 @@ class RuntimeToolDispatcher:
     def __init__(self, settings: Settings, load_result: RuntimeLoadResult) -> None:
         self.settings = settings
         self.load_result = load_result
-        self.generator = ToolGenerator(load_result.operations)
+        self.generator = load_result.generator
         self.api_handler = APIHandler(settings)
 
     def list_tools(self) -> list[dict[str, Any]]:

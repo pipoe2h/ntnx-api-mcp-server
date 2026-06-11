@@ -26,3 +26,4 @@ logs/
 .DS_Store
 .idea/
 .vscode/
+.cursor/

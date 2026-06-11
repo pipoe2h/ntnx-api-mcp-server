@@ -9,7 +9,7 @@ from typing import Any
 from src.config import Settings
 from src.config.constants import ARTIFACT_FILENAME_SUFFIX
 from src.generators import ToolGenerator
-from src.parsers import OpenAPIParser, OperationInfo
+from src.parsers import NamespaceMetadata, OpenAPIParser, OperationInfo
 from src.tools import RuntimeToolDispatcher
 
 
@@ -24,6 +24,7 @@ class StartupLoadResult:
     namespace_tools: list[dict[str, Any]]
     discovery_tools: list[dict[str, Any]]
     operation_index: dict[str, dict[str, Any]]
+    generator: ToolGenerator
 
 
 def select_artifact_source(settings: Settings) -> tuple[str, Path]:
@@ -66,22 +67,33 @@ def infer_namespace(file_path: Path) -> str:
 
 
 def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
-    """
-    Load all operations from selected YAML source.
+    """Load all operations from selected YAML source.
 
-    Supported HTTP operations are extracted in this phase.
+    Collects component schemas and namespace display metadata from each spec file
+    and passes them to ``ToolGenerator`` for schema resolution and tool description
+    enrichment. Schema resolution itself is lazy (triggered by ``getOperationSchema``).
     """
     source_label, source_dir = select_artifact_source(settings)
     files = list_yaml_artifacts(source_dir)
     operations: list[OperationInfo] = []
+    combined_schemas: dict[str, Any] = {}
+    namespace_metadata: dict[str, NamespaceMetadata] = {}
 
     for file_path in files:
         parser = OpenAPIParser(file_path)
         parser.load()
         namespace = infer_namespace(file_path)
         operations.extend(parser.extract_operations(namespace=namespace))
+        # Later specs override earlier ones for the same schema name (last-writer-wins).
+        combined_schemas.update(parser.schemas)
+        if namespace not in namespace_metadata:
+            namespace_metadata[namespace] = parser.get_namespace_metadata(namespace)
 
-    generator = ToolGenerator(operations)
+    generator = ToolGenerator(
+        operations,
+        schemas=combined_schemas,
+        namespace_metadata=namespace_metadata,
+    )
     namespace_tools = generator.build_namespace_tools()
     discovery_tools = generator.build_discovery_tools()
     operation_index = generator.build_operation_index()
@@ -94,6 +106,7 @@ def load_operations_from_yamls(settings: Settings) -> StartupLoadResult:
         namespace_tools=namespace_tools,
         discovery_tools=discovery_tools,
         operation_index=operation_index,
+        generator=generator,
     )
 
 

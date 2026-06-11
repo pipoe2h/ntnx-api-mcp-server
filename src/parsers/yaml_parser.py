@@ -17,6 +17,16 @@ _VERSION_SEG_RE = re.compile(r"^v\d+", re.IGNORECASE)
 
 
 @dataclass(slots=True)
+class NamespaceMetadata:
+    """Display metadata derived from the OpenAPI ``info`` block and root tags list."""
+
+    namespace: str
+    title: str
+    description: str
+    categories: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class ParameterInfo:
     """Operation parameter metadata."""
 
@@ -25,6 +35,7 @@ class ParameterInfo:
     required: bool
     schema: dict[str, Any] = field(default_factory=dict)
     description: str | None = None
+    odata_fields: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -216,6 +227,19 @@ def resolve_collisions(operations: list[OperationInfo]) -> list[OperationInfo]:
     return operations
 
 
+def _truncate_description(text: str, max_chars: int = 120) -> str:
+    """Truncate description to the first sentence or ``max_chars`` characters."""
+    if not text:
+        return ""
+    for sep in (".\n", ". ", "\n\n"):
+        idx = text.find(sep)
+        if 0 < idx < max_chars:
+            return text[: idx + 1].strip()
+    if len(text) <= max_chars:
+        return text.strip()
+    return text[:max_chars].rstrip() + "..."
+
+
 class OpenAPIParser:
     """Parser for v4 OpenAPI YAML specifications."""
 
@@ -224,15 +248,47 @@ class OpenAPIParser:
     def __init__(self, file_path: Path) -> None:
         self.file_path = file_path
         self.spec: dict[str, Any] = {}
+        # Populated by load() — keyed by component schema name.
+        self.schemas: dict[str, Any] = {}
 
     def load(self) -> dict[str, Any]:
-        """Load and return OpenAPI document."""
+        """Load and return OpenAPI document, populating ``self.schemas``."""
         with self.file_path.open("r", encoding="utf-8") as handle:
             loaded = yaml.safe_load(handle)
         if not isinstance(loaded, dict):
             raise ValueError(f"YAML root must be an object in {self.file_path}")
         self.spec = loaded
+        components = self.spec.get("components")
+        if isinstance(components, dict):
+            raw_schemas = components.get("schemas")
+            if isinstance(raw_schemas, dict):
+                self.schemas = raw_schemas
         return self.spec
+
+    def get_namespace_metadata(self, namespace: str) -> NamespaceMetadata:
+        """Build display metadata from the spec ``info`` block and root tags list."""
+        info = self.spec.get("info")
+        info = info if isinstance(info, dict) else {}
+        title = str(info.get("title") or namespace)
+        raw_desc = info.get("description") or ""
+        description = _truncate_description(str(raw_desc))
+
+        categories: list[str] = []
+        tags = self.spec.get("tags")
+        if isinstance(tags, list):
+            for tag in tags:
+                if not isinstance(tag, dict):
+                    continue
+                display = tag.get("x-displayName") or tag.get("name")
+                if isinstance(display, str) and display.strip():
+                    categories.append(display.strip())
+
+        return NamespaceMetadata(
+            namespace=namespace,
+            title=title,
+            description=description,
+            categories=categories,
+        )
 
     def extract_operations(self, namespace: str) -> list[OperationInfo]:
         """Extract supported HTTP operations from OpenAPI paths."""
@@ -408,6 +464,11 @@ class OpenAPIParser:
             schema_value = value.get("schema")
             schema = schema_value if isinstance(schema_value, dict) else {}
             description = value.get("description") if isinstance(value.get("description"), str) else None
+            raw_odata = value.get("x-odata-fields")
+            odata_fields = (
+                [f["name"] for f in raw_odata if isinstance(f, dict) and "name" in f]
+                if isinstance(raw_odata, list) else []
+            )
             extracted.append(
                 ParameterInfo(
                     name=name,
@@ -415,6 +476,7 @@ class OpenAPIParser:
                     required=bool(value.get("required", False)),
                     schema=schema,
                     description=description,
+                    odata_fields=odata_fields,
                 )
             )
         return extracted

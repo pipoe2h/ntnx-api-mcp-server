@@ -7,8 +7,9 @@ import re
 from typing import Any
 
 from src.generators.models import OperationDiscoveryItem, ToolDefinition, ToolInputSchema
-from src.parsers import OperationInfo
-from src.parsers.yaml_parser import _camel_to_tokens
+from src.generators.schema_resolver import SchemaResolver
+from src.parsers import OperationInfo, ParameterInfo
+from src.parsers.yaml_parser import NamespaceMetadata, _camel_to_tokens
 
 _VERSION_RE = re.compile(r"^v\d+", re.IGNORECASE)
 
@@ -101,8 +102,21 @@ class ToolContractError(ValueError):
 class ToolGenerator:
     """Generate namespace-level tool schemas from parsed operations."""
 
-    def __init__(self, operations: list[OperationInfo]) -> None:
+    # OData query params whose valid values are spec-defined per operation.
+    _ODATA_FIELD_PARAMS = frozenset({"$filter", "$select", "$orderby", "$expand"})
+
+    def __init__(
+        self,
+        operations: list[OperationInfo],
+        schemas: dict[str, Any] | None = None,
+        namespace_metadata: dict[str, NamespaceMetadata] | None = None,
+    ) -> None:
         self.operations = operations
+        self._schemas = schemas or {}
+        self._namespace_metadata = namespace_metadata or {}
+        self._resolver = SchemaResolver(self._schemas)
+        # Lazy cache: populated on first getOperationSchema call per operation.
+        self._schema_cache: dict[str, dict[str, Any]] = {}
 
     def group_by_namespace(self) -> dict[str, list[OperationInfo]]:
         """Group parsed operations by namespace."""
@@ -112,37 +126,83 @@ class ToolGenerator:
         return grouped
 
     def build_namespace_tools(self) -> list[dict[str, Any]]:
-        """Build compact `<namespace>_execute` tool schemas."""
+        """Build ``<namespace>_execute`` tool schemas with D2 descriptions.
+
+        ``operation`` and ``request_body`` are the only explicitly typed properties.
+        Path, query, and header parameters are passed as flat top-level keys and
+        accepted via ``additionalProperties: true``. The exact parameter names and
+        body schema for any operation are obtained from ``getOperationSchema``.
+        ``request_body`` must be an explicit named property so the MCP client enforces
+        the object type and the LLM knows body fields belong there, not at top level.
+        """
         tools: list[dict[str, Any]] = []
-        for namespace, operations in sorted(self.group_by_namespace().items()):
-            # registered_name is guaranteed unique within a namespace by resolve_collisions().
-            registered_names = [op.registered_name for op in operations]
+        for namespace, ops in sorted(self.group_by_namespace().items()):
+            registered_names = [op.registered_name for op in ops]
+            meta = self._namespace_metadata.get(namespace)
+            description = self._build_tool_description(namespace, meta, len(registered_names))
+            categories = meta.categories if meta else []
             tool = ToolDefinition(
                 name=f"{namespace}_execute",
-                description=(
-                    f"Execute operations from the {namespace} namespace. "
-                    "Use the operation field to select the exact API operation."
-                ),
+                description=description,
                 inputSchema=ToolInputSchema(
                     properties={
                         "operation": {"type": "string", "enum": registered_names},
-                        "_page": {"type": "integer", "minimum": 0},
-                        "_limit": {"type": "integer", "minimum": 1, "maximum": 100},
-                        "_filter": {"type": "string"},
-                        "_orderby": {"type": "string"},
-                        "_select": {"type": "string"},
-                        "_expand": {"type": "string"},
-                        "request_body": {"type": "object"},
+                        "request_body": {
+                            "type": "object",
+                            "description": (
+                                "JSON body for POST/PUT/PATCH operations. "
+                                "Use exact field names from getOperationSchema request_body_schema. "
+                                "Omit for GET/DELETE."
+                            ),
+                        },
                     },
                     required=["operation"],
+                    additional_properties=True,
                 ),
-                metadata={"namespace": namespace, "operation_count": len(registered_names)},
+                metadata={
+                    "namespace": namespace,
+                    "operation_count": len(registered_names),
+                    "categories": categories,
+                },
             )
             tools.append(tool.model_dump(by_alias=True, exclude_none=True))
         return tools
 
+    def _build_tool_description(
+        self,
+        namespace: str,
+        meta: NamespaceMetadata | None,
+        op_count: int,
+    ) -> str:
+        """Compose a structured description for a namespace execute tool.
+
+        Output format:
+            <Title> — <overview sentence>
+            Covers: <tag1> · <tag2> · ...
+            N operations. Always call getOperationSchema before executing.
+
+        Example:
+            Nutanix VMM APIs — Manage the life-cycle of virtual machines hosted on Nutanix
+            Covers: Templates · OVAs · Images · VMs · VM Recovery Points.
+            192 operations. Always call getOperationSchema before executing.
+        """
+        if meta is None:
+            return (
+                f"Execute operations from the {namespace} namespace. "
+                "Use the operation field to select the exact API operation."
+            )
+        title = meta.title or namespace
+        desc = f"{title}"
+        if meta.description:
+            desc += f" — {meta.description}"
+        if meta.categories:
+            cats = " · ".join(meta.categories)
+            desc += f"\nCovers: {cats}."
+        desc += f"\n{op_count} operations. Always call getOperationSchema before executing."
+        return desc
+
     def build_operation_index(self) -> dict[str, dict[str, Any]]:
-        """Build lookup index keyed by registered_name (guaranteed unique per namespace)."""
+        """Build raw lookup index keyed by registered_name (used for logging/counts)."""
         index: dict[str, dict[str, Any]] = {}
         for operation in self.operations:
             index[operation.registered_name] = asdict(operation)
@@ -173,7 +233,12 @@ class ToolGenerator:
             ),
             ToolDefinition(
                 name="getOperationSchema",
-                description="Get full schema details for a specific operation id.",
+                description=(
+                    "Get full schema details for a specific operation id. "
+                    "Returns path/query/header parameters, resolved request_body_schema "
+                    "(with all $ref/allOf/oneOf chains expanded), immutable_fields (readOnly), "
+                    "and required_body_fields. Always call this before executing a write operation."
+                ),
                 inputSchema=ToolInputSchema(
                     properties={"operation": {"type": "string"}},
                     required=["operation"],
@@ -261,17 +326,19 @@ class ToolGenerator:
         return [item.model_dump() for _, _, item in page]
 
     def get_operation_schema(self, operation_id: str) -> dict[str, Any]:
-        """Return detailed schema dictionary for an operation id."""
-        operation_index = self.build_operation_index()
-        if operation_id not in operation_index:
-            raise KeyError(f"Unknown operation id: {operation_id}")
-        return operation_index[operation_id]
+        """Return structured schema for an operation, resolved lazily and cached."""
+        if operation_id in self._schema_cache:
+            return self._schema_cache[operation_id]
+        op = self._find_operation(operation_id)
+        result = self._build_structured_schema(op)
+        self._schema_cache[operation_id] = result
+        return result
 
     def get_code_sample(self, operation_id: str, language: str) -> dict[str, Any] | None:
         """Return the best matching code sample for operation/language."""
-        schema = self.get_operation_schema(operation_id)
+        op = self._find_operation(operation_id)
         requested = language.lower().strip()
-        for sample in schema.get("code_samples", []):
+        for sample in op.code_samples:
             sample_language = sample.get("lang") or sample.get("language")
             if isinstance(sample_language, str) and sample_language.lower() == requested:
                 return sample
@@ -279,22 +346,127 @@ class ToolGenerator:
 
     def get_operation_permissions(self, operation_id: str) -> dict[str, Any]:
         """Return permission metadata and required roles for an operation id."""
-        schema = self.get_operation_schema(operation_id)
-        permissions = schema.get("permissions")
+        op = self._find_operation(operation_id)
+        permissions = op.permissions
         permission_name = (
             permissions.get("operationName")
             if isinstance(permissions, dict) and isinstance(permissions.get("operationName"), str)
             else None
         )
         return {
-            "operation": schema["operation_id"],
-            "namespace": schema["namespace"],
-            "method": schema["method"],
-            "path": schema["path"],
+            "operation": op.registered_name,
+            "namespace": op.namespace,
+            "method": op.method,
+            "path": op.path,
             "permission_name": permission_name,
-            "required_roles": schema.get("required_roles", []),
+            "required_roles": op.required_roles,
             "raw_permissions": permissions,
         }
+
+    def _find_operation(self, operation_id: str) -> OperationInfo:
+        """Look up an OperationInfo by registered_name, raising KeyError if absent."""
+        for op in self.operations:
+            if op.registered_name == operation_id:
+                return op
+        raise KeyError(f"Unknown operation id: {operation_id!r}")
+
+    def _build_structured_schema(self, op: OperationInfo) -> dict[str, Any]:
+        """Build the deterministic structured response for getOperationSchema."""
+        path_params: list[dict[str, Any]] = []
+        query_params: list[dict[str, Any]] = []
+        header_params: list[dict[str, Any]] = []
+
+        for param in op.parameters:
+            formatted = self._format_param(param)
+            if param.location == "path":
+                path_params.append(formatted)
+            elif param.location == "query":
+                query_params.append(formatted)
+            elif param.location == "header":
+                if param.name == "NTNX-Request-Id":
+                    formatted["auto_managed"] = "Auto-injected by server. No action needed."
+                elif param.name == "If-Match":
+                    formatted["auto_managed"] = (
+                        "Extract _etag value from the prior GET response of this resource."
+                    )
+                header_params.append(formatted)
+
+        body_schema: Any = None
+        body_required = False
+        immutable_fields: list[str] = []
+        required_body_fields: list[str] = []
+
+        if op.request_body and isinstance(op.request_body, dict):
+            body_required = bool(op.request_body.get("required", False))
+            schema_node = (
+                op.request_body
+                .get("content", {})
+                .get("application/json", {})
+                .get("schema", {})
+            )
+            if schema_node:
+                resolved = self._resolver.resolve(schema_node)
+                rtype = resolved.get("type")
+                if rtype == "object":
+                    body_schema = resolved.get("properties") or {}
+                    # Primitive readOnly fields remain in properties with readOnly:true marker;
+                    # complex readOnly fields (arrays, objects) are already filtered by resolver.
+                    immutable_fields = [
+                        k for k, v in body_schema.items()
+                        if isinstance(v, dict) and v.get("readOnly")
+                    ]
+                    required_body_fields = resolved.get("required", [])
+                else:
+                    body_schema = resolved
+
+        result: dict[str, Any] = {
+            "operation": op.registered_name,
+            "method": op.method,
+            "path": op.path,
+            "path_parameters": path_params,
+            "query_parameters": query_params,
+            "header_parameters": header_params,
+            "request_body_required": body_required,
+            "request_body_schema": body_schema,
+            "immutable_fields": immutable_fields,
+            "required_body_fields": required_body_fields,
+        }
+        if op.method.upper() == "POST" and required_body_fields:
+            result["post_guidance"] = (
+                "Send ONLY required_body_fields plus fields the user explicitly requested. "
+                "All other fields must be omitted — server-assigned fields are rejected "
+                "even when their values appear schema-valid."
+            )
+        if op.method.upper() in ("PUT", "PATCH"):
+            result["put_guidance"] = (
+                "PUT/PATCH requires the complete resource body. "
+                "1. GET the resource first. "
+                "2. Clone the full GET response body. "
+                "3. Strip '_etag' (use as If-Match header) and 'links'. "
+                "4. Modify only the fields the user asked to change. "
+                "5. Send the full cloned body. "
+                "Do NOT build the body incrementally from schema — omitting any field the "
+                "server expects will fail even if that field was not explicitly changed."
+            )
+        return result
+
+    # OData query params whose values depend on response field names — guessing causes errors.
+    @classmethod
+    def _format_param(cls, param: ParameterInfo) -> dict[str, Any]:
+        """Convert a ParameterInfo to the compact schema dict sent to the LLM."""
+        result: dict[str, Any] = {"name": param.name, "required": param.required}
+        if param.description:
+            result["description"] = param.description
+        schema = param.schema
+        if isinstance(schema, dict):
+            for key in ("type", "format", "enum", "pattern", "minimum", "maximum",
+                        "maxLength", "minLength"):
+                val = schema.get(key)
+                if val is not None:
+                    result[key] = val
+        if param.name in cls._ODATA_FIELD_PARAMS and param.odata_fields:
+            result["odata_fields"] = param.odata_fields
+        return result
 
     @staticmethod
     def _extract_permission_name(permissions: dict[str, Any] | None) -> str | None:
@@ -311,10 +483,11 @@ class ToolGenerator:
         operation: str,
         request_payload: dict[str, Any],
     ) -> None:
-        """
-        Validate request payload against namespace operation contract.
+        """Validate that the namespace and operation exist, and that request_body is an object.
 
-        Raises ToolContractError for invalid namespace/operation/parameters.
+        With ``additionalProperties: true`` on namespace tools, parameter key validation
+        is relaxed — the LLM is expected to supply only keys it learned from
+        ``getOperationSchema``. Unknown keys are silently ignored during dispatch.
         """
         grouped = self.group_by_namespace()
         namespace_ops = grouped.get(namespace)
@@ -331,24 +504,6 @@ class ToolGenerator:
                 detail=f"Unknown operation '{operation}' for namespace '{namespace}'",
             )
 
-        allowed_keys = {
-            "operation",
-            "_page",
-            "_limit",
-            "_filter",
-            "_orderby",
-            "_select",
-            "_expand",
-            "request_body",
-        }
-        allowed_keys.update({parameter.name for parameter in target.parameters})
-
-        invalid_keys = [key for key in request_payload if key not in allowed_keys]
-        if invalid_keys:
-            raise ToolContractError(
-                code="invalid_parameters",
-                detail=f"Unsupported request fields: {', '.join(sorted(invalid_keys))}",
-            )
         if "request_body" in request_payload and request_payload["request_body"] is not None:
             if not isinstance(request_payload["request_body"], dict):
                 raise ToolContractError(

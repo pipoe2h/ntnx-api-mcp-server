@@ -60,7 +60,13 @@ def test_list_operations_filters_by_namespace_and_search() -> None:
 def test_get_operation_schema_and_code_sample() -> None:
     generator = ToolGenerator(_operations())
     schema = generator.get_operation_schema("getVmById")
-    assert schema["namespace"] == "vmm"
+    # New structured shape: keyed by operation, method, path, parameters, body fields.
+    assert schema["operation"] == "getVmById"
+    assert schema["method"] == "GET"
+    assert schema["path"] == "/vms/{vmId}"
+    assert any(p["name"] == "vmId" for p in schema["path_parameters"])
+    assert "request_body_schema" in schema
+    assert "immutable_fields" in schema
 
     sample = generator.get_code_sample("getVmById", "python")
     assert sample is not None
