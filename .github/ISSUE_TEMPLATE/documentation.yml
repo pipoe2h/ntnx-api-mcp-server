@@ -1,0 +1,30 @@
+name: Documentation Issue
+description: Report unclear, missing, or incorrect documentation
+labels: ["documentation"]
+
+body:
+  - type: dropdown
+    id: doc-page
+    attributes:
+      label: Which documentation page?
+      description: Select the page this relates to, or "Other" if not listed.
+      options:
+        - README
+        - Quickstart guide
+        - Configuration reference
+        - Authentication and security guide
+        - Feature Spotlight
+        - Integration guide
+        - CONTRIBUTING
+        - CHANGELOG
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: details
+    attributes:
+      label: What should be changed?
+      description: Describe what is unclear, missing, or incorrect and how you think it should be updated.
+    validations:
+      required: true

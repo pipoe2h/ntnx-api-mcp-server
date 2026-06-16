@@ -1,0 +1,112 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Please fill in the details below so we can investigate efficiently.
+
+  - type: dropdown
+    id: mcp-client
+    attributes:
+      label: MCP client
+      description: Which MCP client were you using when the issue occurred?
+      options:
+        - Claude Desktop
+        - Cursor
+        - MCP Inspector
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command or phase
+      description: Where did the issue occur?
+      options:
+        - "nutanix-mcp init"
+        - "nutanix-mcp run / run --validate-only"
+        - "nutanix-mcp serve-stdio"
+        - "nutanix-mcp refresh"
+        - "Runtime — tool execution via MCP client"
+        - "Installation / pip install"
+        - "Other"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: namespace
+    attributes:
+      label: Namespace affected
+      description: If the issue is related to a specific namespace, select it. Otherwise choose N/A.
+      options:
+        - N/A
+        - aiops
+        - clustermgmt
+        - datapolicies
+        - dataprotection
+        - files
+        - iam
+        - licensing
+        - lifecycle
+        - microseg
+        - monitoring
+        - multidomain
+        - networking
+        - objects
+        - opsmgmt
+        - prism
+        - security
+        - storage
+        - vmm
+        - volumes
+        - Multiple namespaces
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide version and platform details.
+      value: |
+        - Python version:
+        - OS:
+        - Prism Central version:
+        - MCP server version (from pyproject.toml or `pip show nutanix-mcp`):
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the issue.
+      placeholder: |
+        1. Run `nutanix-mcp init`
+        2. Configure Cursor with ...
+        3. Ask the assistant to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: |
+        What actually happened? Include error messages, stack traces, or relevant log output.
+        Tip: check the log file in your `logs/` directory for detailed server-side errors.
+      render: shell
+    validations:
+      required: true
