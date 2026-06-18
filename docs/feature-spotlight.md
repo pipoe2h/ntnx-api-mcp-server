@@ -6,6 +6,8 @@ Jump to the section for your workload. This spotlight profiles all 19 supported 
 
 Tool counts reflect the current default artifact set. When connected to a fully-upgraded Prism Central, up to 19 namespace tools register automatically for a total of 23 tools.
 
+> **Note:** Some namespaces listed here are only available when the corresponding optional service is deployed and licensed on the Prism Central instance. If a namespace is absent after running `nutanix-mcp init`, the service is either not deployed or not exposed by your PC version — this is expected behavior, not an error.
+
 ---
 
 ## Discovery

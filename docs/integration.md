@@ -212,7 +212,7 @@ Claude Desktop does not expose a built-in HITL toggle. Use a persistent system p
 }
 ```
 
-> **Note:** The `systemPrompt` key is supported in Claude Desktop as of version 0.7+. Check your version if it does not take effect.
+> **Note:** The `systemPrompt` key may not be present in all Claude Desktop versions. Consult the Claude Desktop release notes if it does not take effect.
 
 ### MCP tool annotations
 

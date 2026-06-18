@@ -36,7 +36,6 @@ PC_PASSWORD=your-password
 # API key for the X-ntnx-api-key header.
 # Prefer over basic auth when both are set — PC_API_KEY takes priority.
 # Stored in memory as SecretStr; masked as ********** in all log output.
-# Stored in memory as SecretStr; masked as ********** in all log output.
 PC_API_KEY=your-api-key
 
 # ── TLS ───────────────────────────────────────────────────────────────────────
@@ -78,6 +77,12 @@ LOG_DIR=/home/user/.nutanix-mcp/logs
 # Override only if you mirror the Nutanix developer portal internally.
 # Default: https://developers.nutanix.com/api/v1/namespaces
 NAMESPACE_SOURCE_URL=https://developers.nutanix.com/api/v1/namespaces
+
+# Comma-separated list of namespace names to load at startup.
+# When set, only listed namespaces are fetched and registered as tools.
+# Omit this variable to load all namespaces available on the PC instance.
+# Example: NAMESPACE_OVERRIDE_LIST=aiops,vmm,prism
+# NAMESPACE_OVERRIDE_LIST=
 
 ```
 
@@ -133,6 +138,7 @@ directory (loaded automatically via `pydantic-settings`). Variable names are cas
 |---|---|---|---|---|
 | `ARTIFACTS_DIR` | Directory for downloaded OpenAPI YAML files; created on startup. **Use an absolute path** in AI client config files. | No | `<project_root>/artifacts` | `/opt/nutanix-mcp/artifacts` |
 | `NAMESPACE_SOURCE_URL` | Namespace-list discovery endpoint | No | `https://developers.nutanix.com/api/v1/namespaces` | *(use default)* |
+| `NAMESPACE_OVERRIDE_LIST` | Comma-separated list of namespace names to load. When set, only these namespaces are fetched and registered as tools — all others are skipped. Useful for air-gapped environments or when only a subset of namespaces is needed. | No | *(none — all available namespaces loaded)* | `aiops,vmm,prism` |
 | `READ_ONLY_MODE` | When `"true"`, all non-GET operations are rejected server-side before reaching Prism Central | No | `"false"` | `"true"` |
 
 ### Logging
@@ -159,12 +165,13 @@ file key and an environment variable are set, see [Precedence rules](#precedence
 | `pc_username` | string | *(none)* | Basic-auth username |
 | `pc_password` | string | *(none)* | Basic-auth password; treated as `SecretStr` in memory |
 | `pc_api_key` | string | *(none)* | API key sent as `X-ntnx-api-key`; treated as `SecretStr` in memory |
-| `pc_insecure` | boolean | `true` | `true` = TLS verification disabled; `false` = TLS verification enabled |
+| `pc_insecure` | boolean | `false` | `true` = TLS verification disabled; `false` = TLS verification enabled (default; recommended for production) |
 | `artifacts_dir` | path string | `<project_root>/artifacts` | Runtime artifact directory; created if absent |
 | `log_level` | string | `"INFO"` | One of `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
 | `log_format` | string | `"text"` | `"text"` or `"json"` |
 | `log_dir` | path string | `<project_root>/logs` | Per-restart log file directory; created if absent |
 | `namespace_source_url` | URL string | `https://developers.nutanix.com/api/v1/namespaces` | Namespace-list discovery endpoint |
+| `namespace_override_list` | string | *(none)* | Comma-separated namespace names to load (e.g. `aiops,vmm,prism`). When set, only listed namespaces are fetched and registered. All others are skipped. |
 | `read_only_mode` | boolean | `false` | `true` = block all non-GET operations server-side; `false` = allow write operations |
 
 ### Notes on specific keys

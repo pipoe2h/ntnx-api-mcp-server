@@ -1,0 +1,614 @@
+Nutanix_api-mcp-server
+
+
+
+Components: 
+
+annotated-types 0.7.0: https://github.com/annotated-types/annotated-types : MIT License
+anyio 4.13.0: https://pypi.org/project/anyio/ : MIT License
+argcomplete 3.6.3: https://github.com/kislyuk/argcomplete : Apache License 2.0
+Click - Python Command Line Utility 8.3.1: http://click.pocoo.org/ : BSD 3-clause "New" or "Revised" License
+crate-py/rpds 2026.5.1: https://github.com/crate-py/rpds : MIT License
+encode/uvicorn 0.48.0: https://github.com/encode/uvicorn/ : BSD 3-clause "New" or "Revised" License
+h11 0.16.0: https://github.com/njsmith/h11 : MIT License
+httpcore 1.0.9: https://github.com/encode/httpcore : BSD 3-clause "New" or "Revised" License
+httpx 0.28.1: https://www.python-httpx.org/ : BSD 3-clause "New" or "Revised" License
+httpx-sse 0.4.3 : MIT License
+idna 3.17: https://github.com/kjd/idna : BSD 3-clause "New" or "Revised" License
+jsonschema-specifications 2025.9.1: https://pypi.org/project/jsonschema-specifications/ : MIT License
+Packaging 26.0: https://github.com/pypa/packaging : (BSD 2-clause "Simplified" License OR Apache License 2.0)
+pipenv 2026.0.3: https://pipenv.pypa.io : MIT License
+pipx 1.8.0: https://github.com/janakitech/pipx : MIT License
+platformdirs 4.9.2: https://platformdirs.readthedocs.io : MIT License
+pyca/cryptography 48.0.0: https://github.com/pyca/cryptography : (Apache License 2.0 OR BSD 3-clause "New" or "Revised" License)
+pycparser 3.0: https://github.com/eliben/pycparser : BSD 3-clause "New" or "Revised" License
+pydantic 2.13.4: https://pydantic-docs.helpmanual.io/ : MIT License
+pydantic-core 2.46.4: https://github.com/pydantic/pydantic-core : MIT License
+pydantic-settings 2.14.1: https://github.com/danields761/pydantic-settings : MIT License
+py-filelock 3.25.0: https://github.com/benediktschmitt/py-filelock : The Unlicense
+PyJWT 2.13.0: https://pyjwt.readthedocs.io : MIT License
+python-attrs 26.1.0: https://attrs.readthedocs.org/ : MIT License
+python-certifi 2026.2.25: https://certifiio.readthedocs.io/en/latest/ : ISC License
+python cffi 2.0.0: https://cffi.readthedocs.io/en/latest/index.html : MIT License
+python-discovery 1.1.0 : MIT License
+python-distlib 0.4.0: https://pypi.python.org/pypi/distlib : Python Software Foundation License 2.0
+python-dotenv 1.2.2: http://github.com/theskumar/python-dotenv : BSD 3-clause "New" or "Revised" License
+python-jsonschema 4.26.0: https://python-jsonschema.readthedocs.org : MIT License
+python-typing-extensions 4.15.0 : Python Software Foundation License 2.0
+PyYAML 6.0.3: https://pyyaml.org/ : MIT License
+referencing 0.37.0: https://github.com/python-jsonschema/referencing : MIT License
+sse-starlette 3.4.4: https://github.com/sysid/sse-starlette : BSD 3-clause "New" or "Revised" License
+tenacity 9.1.4: https://github.com/jd/tenacity : Apache License 2.0
+typing-inspection 0.4.2 : MIT License
+userpath 1.9.2: https://github.com/russianidiot/userpath.py/ : MIT License
+virtualenv 21.1.0: https://pypi.org/project/virtualenv/ : MIT License
+
+Copyright Text: 
+
+annotated-types 0.7.0 pypi:annotated-types/0.7.0: https://github.com/annotated-types/annotated-types
+	Copyright (c) 2022 the contributors
+anyio 4.13.0 pypi:anyio/4.13.0: https://pypi.org/project/anyio/
+	Copyright (c) 2018 Alex Gr
+argcomplete 3.6.3 pypi:argcomplete/3.6.3: https://github.com/kislyuk/argcomplete
+	Copyright 2012-2023 Andrey Kislyuk and argcomplete contributors.
+Click - Python Command Line Utility 8.3.1 pypi:click/8.3.1: http://click.pocoo.org/
+	Copyright 2001-2006 Gregory P. Ward
+	Copyright 2001-2006 Gregory P. Ward. All rights reserved
+	Copyright 2002-2006 Python Software Foundation
+	Copyright 2002-2006 Python Software Foundation. All rights reserved
+	Copyright 2014 Pallets
+crate-py/rpds 2026.5.1 pypi:rpds-py/2026.5.1: https://github.com/crate-py/rpds
+	Copyright (c) 2022 Tobias Gustafsson
+	Copyright (c) 2023 Julian Berman
+encode/uvicorn 0.48.0 pypi:uvicorn/0.48.0: https://github.com/encode/uvicorn/
+	Copyright Â© 2017present, All rights reserved
+h11 0.16.0 pypi:h11/0.16.0: https://github.com/njsmith/h11
+	Copyright (C) 2006 Jonathan E. Taylor All rights reserved
+	Copyright (c) 2006-2008 Scipy Developers. All rights reserved
+	Copyright (c) 2009-2012 Statsmodels Developers. All rights reserved
+	Copyright (c) 2016 Nathaniel J. Smith <njs@pobox.com> and other contributors
+	Copyright 2007-2008 Chris Wanstrath Usage:
+	copyright = '2016 Nathaniel J. Smith author = 'Nathaniel J. Smith' The version info for the project you're documenting, acts as replacement for |version| and |release|, also used in various other pla
+httpcore 1.0.9 pypi:httpcore/1.0.9: https://github.com/encode/httpcore
+	Copyright Â© 2020 All rights reserved
+httpx 0.28.1 pypi:httpx/0.28.1: https://www.python-httpx.org/
+	Copyright Â© 2019 All rights reserved
+httpx-sse 0.4.3 pypi:httpx-sse/0.4.3
+	Copyright (c) 2022 Florimond Manca
+idna 3.17 pypi:idna/3.17: https://github.com/kjd/idna
+	Copyright (c) 2013-2026 Kim Davies and contributors. All rights reserved
+jsonschema-specifications 2025.9.1 pypi:jsonschema-specifications/2025.9.1: https://pypi.org/project/jsonschema-specifications/
+	Copyright (c) 2022 Julian Berman
+	copyright = f"2022 release = importlib.metadata.version("jsonschema-specifications") version = release.partition("-")[0]
+Packaging 26.0 pypi:packaging/26.0: https://github.com/pypa/packaging
+	Copyright (c) 2017present Ofek Lev <oss@ofek.dev>
+pipenv 2026.0.3 pypi:pipenv/2026.0.3: https://pipenv.pypa.io
+	(c) 2012, 2017 by Kenneth Reitz.
+	Copyright (c) 1991-1995 Stichting Mathematisch Centrum Amsterdam, The Netherlands. All rights reserved
+	Copyright (C) 2008-2011 INADA Naoki <songofacandy@gmail.com>
+	Copyright (c) 2008-2020 Andrey Petrov and contributors (see CONTRIBUTORS.txt)
+	Copyright (c) 2009 George Mandis (georgemandis.com, snaptortoise.com)
+	Copyright (c) 2010-2020 Benjamin Peterson
+	Copyright (c) 2012 Daniel Holth <dholth@fastmail.fm> and contributors
+	Copyright (c) 2012 Noah Spurrier <noah@noah.org>
+	Copyright (C) 2012-2023 The Python Software Foundation.
+	Copyright (C) 2012-2024 Vinay Sajip.
+	Copyright (c) 2013 Mahmoud Hashemi
+	Copyright (c) 2013-2014 Pexpect development team
+	Copyright (c) 2013-2024 Kim Davies and contributors.
+	Copyright (c) 2014 Saurabh Kumar (python-dotenv), 2013, Ted Tieken (django-dotenv-rw), 2013, Jacob Kaplan-Moss (django-dotenv)
+	Copyright (c) 2015-2016 Will Bond <will@wbond.net>
+	Copyright (c) 2016 Timo Furrer
+	Copyright (c) 2017 Thomas Kluyver
+	Copyright (c) 2017present Ofek Lev <oss@ofek.dev>
+	Copyright (c) 2018 Dan Ryan
+	Copyright (c) 2018 S
+	Copyright (c) 2018 Tzu-ping Chung <uranusjr@gmail.com>
+	Copyright (c) 2021 Taneli Hukkinen
+	Copyright (c) 2022 Seth Michael Larson
+	Copyright (c) 2024present Stephen Rosen <sirosen0@gmail.com>
+	Copyright 2001-2006 Gregory P. Ward
+	Copyright 2001-2006 Gregory P. Ward. All rights reserved
+	Copyright 2002-2006 Python Software Foundation
+	Copyright 2002-2006 Python Software Foundation. All rights reserved
+	Copyright 2006-2025 by the Pygments team, see AUTHORS.
+	Copyright 2012-2021 Eric Larson
+	Copyright 2014 Pallets
+	Copyright 2015-2021 Nir Cohen
+	Copyright 2020-2022 Python Packaging Authority
+	Copyright Jonathan Hartley 2013
+	Copyright Jonathan Hartley 2013.
+pipx 1.8.0 pypi:pipx/1.8.0: https://github.com/janakitech/pipx
+	Copyright (c) 2018 Chad Smith and contributors
+platformdirs 4.9.2 pypi:platformdirs/4.9.2: https://platformdirs.readthedocs.io
+	Copyright (c) 2010202x The platformdirs developers
+pyca/cryptography 48.0.0 pypi:cryptography/48.0.0: https://github.com/pyca/cryptography
+	Copyright (c) 2005-2020 NumPy Developers.
+	Copyright 2015 The Go Authors. All rights reserved
+pycparser 3.0 pypi:pycparser/3.0: https://github.com/eliben/pycparser
+	Copyright (c) 2008-2022 Eli Bendersky
+pydantic 2.13.4 pypi:pydantic/2.13.4: https://pydantic-docs.helpmanual.io/
+	Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors.
+pydantic-core 2.46.4 pypi:pydantic_core/2.46.4: https://github.com/pydantic/pydantic-core
+	Copyright (c) 2022 Samuel Colvin
+pydantic-settings 2.14.1 pypi:pydantic-settings/2.14.1: https://github.com/danields761/pydantic-settings
+	Copyright (c) 2022 Samuel Colvin and other contributors
+py-filelock 3.25.0 pypi:filelock/3.25.0: https://github.com/benediktschmitt/py-filelock
+	Copyright (c) 2025 Bern
+PyJWT 2.13.0 pypi:PyJWT/2.13.0: https://pyjwt.readthedocs.io
+	Copyright (c) 2015-2022 Jos
+	Copyright 2015-2026 Jos
+python-attrs 26.1.0 pypi:attrs/26.1.0: https://attrs.readthedocs.org/
+	Copyright (c) 2015 Hynek Schlawack and the attrs contributors
+python-certifi 2026.2.25 pypi:certifi/2026.2.25: https://certifiio.readthedocs.io/en/latest/
+	No Copyrights found
+python cffi 2.0.0 pypi:cffi/2.0.0: https://cffi.readthedocs.io/en/latest/index.html
+	Copyright (c) 1996 Red Hat, Inc. Common internal definitions and macros. Only necessary for building libffi.
+	Copyright (c) 1996, 1998 Red Hat, Inc. Predefined ffi_types needed by libffi.
+	Copyright (c) 1996-2003, 2007, 2008 Red Hat, Inc.
+	Copyright (c) 2001 John Beniton
+	Copyright (c) 2002 Bo Thorsen
+	Copyright (c) 2002 Ranjit Mathew
+	Copyright (c) 2002 Roger Sayle x86 Foreign Function Interface
+	Copyright (c) 2009-2012 ARM Ltd.
+	Copyright (c) 2011, 2014, 2019, 2021 Anthony Green
+python-discovery 1.1.0 pypi:python-discovery/1.1.0
+	No Copyrights found
+python-distlib 0.4.0 pypi:distlib/0.4.0: https://pypi.python.org/pypi/distlib
+	Copyright (c) 1991-1995 Stichting Mathematisch Centrum Amsterdam, The Netherlands. All rights reserved
+	Copyright (C) 2011-2022 Vinay Sajip. All rights reserved
+	Copyright (C) 2012-2023 Python Software Foundation.
+	Copyright (C) 2012-2023 The Python Software Foundation.
+	Copyright (C) 2012-2024 Vinay Sajip.
+	Copyright (C) 2013 by Test User. Permission to use, copy, modify, and distribute this software and its documentation for any purpose and without fee is hereby granted, provided that the above copyrigh
+	Copyright (C) 2013 by Test User." }, "python.project": { "contacts": [ {"name": "Test User", "email": "test.user@testusers.org", "role": "author" }
+	Copyright (C) 2013 by Test User.", "author": "Test User", "home-page": "http://pypi.org/pypi/{username}_testdist/", "summary": "A test project for distlib", "version": "0.1", "maintainer-email": "test
+	Copyright (C) 2013 by Test User.", "author": "Test User", "home-page": "http://pypi.python.org/pypi/test_testdist/", "summary": "A test project for distlib", "version": "0.1", "maintainer-email": "tes
+	Copyright (C) 2014 by Some Developer. All Rights Reserved
+	Copyright (C) 2024 Stewart Miles
+python-dotenv 1.2.2 pypi:python-dotenv/1.2.2: http://github.com/theskumar/python-dotenv
+	Copyright (c) 2014 Saurabh Kumar (python-dotenv), 2013, Ted Tieken (django-dotenv-rw), 2013, Jacob Kaplan-Moss (django-dotenv)
+python-jsonschema 4.26.0 pypi:jsonschema/4.26.0: https://python-jsonschema.readthedocs.org
+	Copyright (c) 2012-2013 Julian Berman
+python-typing-extensions 4.15.0 pypi:typing-extensions/4.15.0
+	Copyright (c) 1991-1995 Stichting Mathematisch Centrum Amsterdam, The Netherlands. All rights reserved
+PyYAML 6.0.3 pypi:PyYAML/6.0.3: https://pyyaml.org/
+	Copyright (c) 2006-2016 Kirill Simonov
+	Copyright (c) 2017-2021 Ingy d
+referencing 0.37.0 pypi:referencing/0.37.0: https://github.com/python-jsonschema/referencing
+	Copyright (c) 2022 Julian Berman
+sse-starlette 3.4.4 pypi:sse-starlette/3.4.4: https://github.com/sysid/sse-starlette
+	Copyright Â© 2020 All rights reserved
+tenacity 9.1.4 pypi:tenacity/9.1.4: https://github.com/jd/tenacity
+	Copyright 2013-2014 Ray Holder
+	Copyright 2016 Joshua Harlow
+	Copyright 2016-2018 Julien Danjou
+	Copyright 2017 Elisey Zanko
+typing-inspection 0.4.2 pypi:typing-inspection/0.4.2
+	Copyright (c) Pydantic Services Inc. 2025 to present
+userpath 1.9.2 pypi:userpath/1.9.2: https://github.com/russianidiot/userpath.py/
+	Copyright (c) 2017present Ofek Lev <oss@ofek.dev>
+virtualenv 21.1.0 pypi:virtualenv/21.1.0: https://pypi.org/project/virtualenv/
+	(c) 2006-2024 by Georg Brandl, Matth
+	(c) 2012 by Kenneth Reitz.
+	(c) 2017 by Kenneth Reitz
+	Copyright (c) 1991-1995 Stichting Mathematisch Centrum Amsterdam, The Netherlands. All rights reserved
+	Copyright (C) 2002 Lars Gustaebel <lars@gustaebel.de>
+	Copyright (c) 2006-2022 by the respective authors (see AUTHORS file). All rights reserved
+	Copyright (C) 2008-2011 INADA Naoki <songofacandy@gmail.com>
+	Copyright (c) 2008-2020 Andrey Petrov and contributors (see CONTRIBUTORS.txt)
+	Copyright (c) 2008present The pip developers (see AUTHORS.txt file)
+	Copyright (C) 2010 Paul Dyson
+	Copyright (c) 2010-2020 Benjamin Peterson
+	Copyright (c) 2010202x The platformdirs developers
+	Copyright (c) 2012 Daniel Holth <dholth@fastmail.fm> and contributors
+	Copyright (c) 2012 Erik Rose
+	Copyright (C) 2012-2023 Python Software Foundation.
+	Copyright (C) 2012-2023 The Python Software Foundation.
+	Copyright (C) 2012-2024 Vinay Sajip.
+	Copyright (c) 2013-2025 Kim Davies and contributors.
+	Copyright (c) 2015-2016 Will Bond <will@wbond.net>
+	Copyright (c) 2017 Thomas Kluyver
+	Copyright (c) 2017present Ofek Lev <oss@ofek.dev>
+	Copyright (c) 2018 Michal Horejsek
+	Copyright (c) 2018 Tzu-ping Chung <uranusjr@gmail.com>
+	Copyright (c) 2020 Will McGugan
+	Copyright (c) 2020202x The virtualenv developers
+	Copyright (c) 2021 Taneli Hukkinen
+	Copyright (c) 2022 Seth Michael Larson
+	Copyright (c) 2024present Stephen Rosen <sirosen0@gmail.com>
+	Copyright (c) 2025-2026 <copyright holders>
+	Copyright 2006-2024 by the Pygments team.
+	Copyright 2006-2025 by the Pygments team, see AUTHORS.
+	Copyright 2012-2021 Eric Larson
+	Copyright 2014-2016 Nathan West
+	Copyright 2015-2021 Nir Cohen
+
+Licenses: 
+
+Apache License 2.0
+(argcomplete 3.6.3, Packaging 26.0, pyca/cryptography 48.0.0, tenacity 9.1.4)
+
+Apache License
+Version 2.0, January 2004
+=========================
+
+
+http://www.apache.org/licenses/
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. Definitions.
+
+"License" shall mean the terms and conditions for use, reproduction, and
+distribution as defined by Sections 1 through 9 of this document.
+
+"Licensor" shall mean the copyright owner or entity authorized by the copyright
+owner that is granting the License.
+
+"Legal Entity" shall mean the union of the acting entity and all other entities
+that control, are controlled by, or are under common control with that entity.
+For the purposes of this definition, "control" means (i) the power, direct or
+indirect, to cause the direction or management of such entity, whether by
+contract or otherwise, or (ii) ownership of fifty percent (50%) or more of the
+outstanding shares, or (iii) beneficial ownership of such entity.
+
+"You" (or "Your") shall mean an individual or Legal Entity exercising permissions
+granted by this License.
+
+"Source" form shall mean the preferred form for making modifications, including
+but not limited to software source code, documentation source, and configuration
+files.
+
+"Object" form shall mean any form resulting from mechanical transformation or
+translation of a Source form, including but not limited to compiled object code,
+generated documentation, and conversions to other media types.
+
+"Work" shall mean the work of authorship, whether in Source or Object form, made
+available under the License, as indicated by a copyright notice that is included
+in or attached to the work (an example is provided in the Appendix below).
+
+"Derivative Works" shall mean any work, whether in Source or Object form, that is
+based on (or derived from) the Work and for which the editorial revisions,
+annotations, elaborations, or other modifications represent, as a whole, an
+original work of authorship. For the purposes of this License, Derivative Works
+shall not include works that remain separable from, or merely link (or bind by
+name) to the interfaces of, the Work and Derivative Works thereof.
+
+"Contribution" shall mean any work of authorship, including the original version
+of the Work and any modifications or additions to that Work or Derivative Works
+thereof, that is intentionally submitted to Licensor for inclusion in the Work by
+the copyright owner or by an individual or Legal Entity authorized to submit on
+behalf of the copyright owner. For the purposes of this definition, "submitted"
+means any form of electronic, verbal, or written communication sent to the
+Licensor or its representatives, including but not limited to communication on
+electronic mailing lists, source code control systems, and issue tracking systems
+that are managed by, or on behalf of, the Licensor for the purpose of discussing
+and improving the Work, but excluding communication that is conspicuously marked
+or otherwise designated in writing by the copyright owner as "Not a
+Contribution."
+
+"Contributor" shall mean Licensor and any individual or Legal Entity on behalf of
+whom a Contribution has been received by Licensor and subsequently incorporated
+within the Work.
+
+2. Grant of Copyright License. Subject to the terms and conditions of this
+License, each Contributor hereby grants to You a perpetual, worldwide,
+non-exclusive, no-charge, royalty-free, irrevocable copyright license to
+reproduce, prepare Derivative Works of, publicly display, publicly perform,
+sublicense, and distribute the Work and such Derivative Works in Source or Object
+form.
+
+3. Grant of Patent License. Subject to the terms and conditions of this License,
+each Contributor hereby grants to You a perpetual, worldwide, non-exclusive,
+no-charge, royalty-free, irrevocable (except as stated in this section) patent
+license to make, have made, use, offer to sell, sell, import, and otherwise
+transfer the Work, where such license applies only to those patent claims
+licensable by such Contributor that are necessarily infringed by their
+Contribution(s) alone or by combination of their Contribution(s) with the Work to
+which such Contribution(s) was submitted. If You institute patent litigation
+against any entity (including a cross-claim or counterclaim in a lawsuit)
+alleging that the Work or a Contribution incorporated within the Work constitutes
+direct or contributory patent infringement, then any patent licenses granted to
+You under this License for that Work shall terminate as of the date such
+litigation is filed.
+
+4. Redistribution. You may reproduce and distribute copies of the Work or
+Derivative Works thereof in any medium, with or without modifications, and in
+Source or Object form, provided that You meet the following conditions:
+
+  a. You must give any other recipients of the Work or Derivative Works a copy of
+    this License; and
+
+  b. You must cause any modified files to carry prominent notices stating that
+    You changed the files; and
+
+  c. You must retain, in the Source form of any Derivative Works that You
+    distribute, all copyright, patent, trademark, and attribution notices from
+    the Source form of the Work, excluding those notices that do not pertain to
+    any part of the Derivative Works; and
+
+  d. If the Work includes a "NOTICE" text file as part of its distribution, then
+    any Derivative Works that You distribute must include a readable copy of the
+    attribution notices contained within such NOTICE file, excluding those
+    notices that do not pertain to any part of the Derivative Works, in at least
+    one of the following places: within a NOTICE text file distributed as part of
+    the Derivative Works; within the Source form or documentation, if provided
+    along with the Derivative Works; or, within a display generated by the
+    Derivative Works, if and wherever such third-party notices normally appear.
+    The contents of the NOTICE file are for informational purposes only and do
+    not modify the License. You may add Your own attribution notices within
+    Derivative Works that You distribute, alongside or as an addendum to the
+    NOTICE text from the Work, provided that such additional attribution notices
+    cannot be construed as modifying the License.
+
+You may add Your own copyright statement to Your modifications and may provide
+additional or different license terms and conditions for use, reproduction, or
+distribution of Your modifications, or for any such Derivative Works as a whole,
+provided Your use, reproduction, and distribution of the Work otherwise complies
+with the conditions stated in this License.
+
+5. Submission of Contributions. Unless You explicitly state otherwise, any
+Contribution intentionally submitted for inclusion in the Work by You to the
+Licensor shall be under the terms and conditions of this License, without any
+additional terms or conditions. Notwithstanding the above, nothing herein shall
+supersede or modify the terms of any separate license agreement you may have
+executed with Licensor regarding such Contributions.
+
+6. Trademarks. This License does not grant permission to use the trade names,
+trademarks, service marks, or product names of the Licensor, except as required
+for reasonable and customary use in describing the origin of the Work and
+reproducing the content of the NOTICE file.
+
+7. Disclaimer of Warranty. Unless required by applicable law or agreed to in
+writing, Licensor provides the Work (and each Contributor provides its
+Contributions) on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+either express or implied, including, without limitation, any warranties or
+conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+PARTICULAR PURPOSE. You are solely responsible for determining the
+appropriateness of using or redistributing the Work and assume any risks
+associated with Your exercise of permissions under this License.
+
+8. Limitation of Liability. In no event and under no legal theory, whether in
+tort (including negligence), contract, or otherwise, unless required by
+applicable law (such as deliberate and grossly negligent acts) or agreed to in
+writing, shall any Contributor be liable to You for damages, including any
+direct, indirect, special, incidental, or consequential damages of any character
+arising as a result of this License or out of the use or inability to use the
+Work (including but not limited to damages for loss of goodwill, work stoppage,
+computer failure or malfunction, or any and all other commercial damages or
+losses), even if such Contributor has been advised of the possibility of such
+damages.
+
+9. Accepting Warranty or Additional Liability. While redistributing the Work or
+Derivative Works thereof, You may choose to offer, and charge a fee for,
+acceptance of support, warranty, indemnity, or other liability obligations and/or
+rights consistent with this License. However, in accepting such obligations, You
+may act only on Your own behalf and on Your sole responsibility, not on behalf of
+any other Contributor, and only if You agree to indemnify, defend, and hold each
+Contributor harmless for any liability incurred by, or claims asserted against,
+such Contributor by reason of your accepting any such warranty or additional
+liability.
+
+END OF TERMS AND CONDITIONS
+
+APPENDIX: How to apply the Apache License to your work
+
+To apply the Apache License to your work, attach the following boilerplate
+notice, with the fields enclosed by brackets "[]" replaced with your own
+identifying information. (Don't include the brackets!) The text should be
+enclosed in the appropriate comment syntax for the file format. We also recommend
+that a file or class name and description of purpose be included on the same
+"printed page" as the copyright notice for easier identification within
+third-party archives.
+
+  Copyright [yyyy] [name of copyright owner] Licensed under the Apache License,
+  Version 2.0 (the "License"); you may not use this file except in compliance
+  with the License. You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law
+  or agreed to in writing, software distributed under the License is
+  distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied. See the License for the specific language
+  governing permissions and limitations under the License.
+
+---
+
+BSD 2-clause "Simplified" License
+(Packaging 26.0)
+
+BSD Two Clause License
+======================
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+  1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+
+---
+
+BSD 3-clause "New" or "Revised" License
+(Click - Python Command Line Utility 8.3.1, encode/uvicorn 0.48.0, httpcore 1.0.9, httpx 0.28.1, idna 3.17, pyca/cryptography 48.0.0, pycparser 3.0, python-dotenv 1.2.2, sse-starlette 3.4.4)
+
+Copyright (c) <YEAR>, <OWNER>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+  * Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+
+  * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+
+  * Neither the name of the <ORGANIZATION> nor the names of its contributors may
+    be used to endorse or promote products derived from this software without
+    specific prior written permission.
+
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+---
+
+ISC License
+(python-certifi 2026.2.25)
+
+ISC License (ISCL)
+==================
+
+Copyright (c) 4-digit year, Company or Person's Name
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+
+---
+
+MIT License
+(annotated-types 0.7.0, anyio 4.13.0, crate-py/rpds 2026.5.1, h11 0.16.0, httpx-sse 0.4.3, jsonschema-specifications 2025.9.1, pipenv 2026.0.3, pipx 1.8.0, platformdirs 4.9.2, pydantic 2.13.4, pydantic-core 2.46.4, pydantic-settings 2.14.1, PyJWT 2.13.0, python cffi 2.0.0, python-attrs 26.1.0, python-discovery 1.1.0, python-jsonschema 4.26.0, PyYAML 6.0.3, referencing 0.37.0, typing-inspection 0.4.2, userpath 1.9.2, virtualenv 21.1.0)
+
+The MIT License
+===============
+
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in the
+Software without restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+Python Software Foundation License 2.0
+(python-distlib 0.4.0, python-typing-extensions 4.15.0)
+
+This license was approved as the official PSF License Version 2 on October 22,
+2004. The only differences between this and version 1 of the PSF license consist
+of removing Python version numbers (like 2.1.1 or 2.3).
+
+
+
+PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
+============================================
+
+--------------------------------------------
+
+  1.  This LICENSE AGREEMENT is between the Python Software Foundation ("PSF"),
+    and the Individual or Organization ("Licensee") accessing and otherwise using
+    this software ("Python") in source or binary form and its associated
+    documentation.
+
+  2.  Subject to the terms and conditions of this License Agreement, PSF hereby
+    grants Licensee a nonexclusive, royalty-free, world-wide license to
+    reproduce, analyze, test, perform and/or display publicly, prepare derivative
+    works, distribute, and otherwise use Python alone or in any derivative
+    version, provided, however, that PSF's License Agreement and PSF's notice of
+    copyright, i.e., "Copyright (c) 2001, 2002, 2003, 2004 Python Software
+    Foundation; All Rights Reserved" are retained in Python alone or in any
+    derivative version prepared by Licensee.
+
+  3. In the event Licensee prepares a derivative work that is based on or
+    incorporates Python or any part thereof, and wants to make the derivative
+    work available to others as provided herein, then Licensee hereby agrees to
+    include in any such work a brief summary of the changes made to Python.
+
+  4.  PSF is making Python available to Licensee on an "AS IS" basis. PSF MAKES
+    NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED. BY WAY OF EXAMPLE, BUT
+    NOT LIMITATION, PSF MAKES NO AND DISCLAIMS ANY REPRESENTATION OR WARRANTY OF
+    MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF
+    PYTHON WILL NOT INFRINGE ANY THIRD PARTY RIGHTS.
+
+  5.  PSF SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF PYTHON FOR ANY
+    INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS AS A RESULT OF
+    MODIFYING, DISTRIBUTING, OR OTHERWISE USING PYTHON, OR ANY DERIVATIVE
+    THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
+
+  6.  This License Agreement will automatically terminate upon a material breach
+    of its terms and conditions.
+
+  7.  Nothing in this License Agreement shall be deemed to create any
+    relationship of agency, partnership, or joint venture between PSF and
+    Licensee. This License Agreement does not grant permission to use PSF
+    trademarks or trade name in a trademark sense to endorse or promote products
+    or services of Licensee, or any third party.
+
+  8.  By copying, installing or otherwise using Python, Licensee agrees to be
+    bound by the terms and conditions of this License Agreement.
+
+---
+
+The Unlicense
+(py-filelock 3.25.0)
+
+The Unlicense
+=============
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+software, either in source code form or as a compiled binary, for any purpose,
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the public
+domain. We make this dedication for the benefit of the public at large and to the
+detriment of our heirs and successors. We intend this dedication to be an overt
+act of relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to http://unlicense.org/
+
+---

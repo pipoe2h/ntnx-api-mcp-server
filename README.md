@@ -3,7 +3,6 @@
 > Expose Nutanix V4 APIs as tools callable by AI assistants — Claude, Cursor, and any MCP-compatible client.
 
 [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](pyproject.toml)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 
 ---
@@ -24,7 +23,6 @@ Once connected, an AI assistant like Claude or Cursor can discover available Nut
 | A developer getting started | [Quickstart guide](docs/quickstart.md) — install, configure, and first tool call |
 | An IT security reviewer | [Authentication and security guide](docs/authentication.md) — credentials, permissions, network exposure, production checklist |
 | Returning after an update | [Changelog](CHANGELOG.md) — what changed and whether configuration needs updating |
-| A contributor | [CONTRIBUTING.md](CONTRIBUTING.md) — setup, testing, and PR process |
 
 ---
 
@@ -50,9 +48,9 @@ The server exposes one `<namespace>_execute` tool per namespace. Namespaces are 
 | `opsmgmt` | `opsmgmt_execute` | Shared platform functionality for aiops, devops, secops, finops |
 | `prism` | `prism_execute` | Tasks, categories, batch operations, domain managers, backup targets, external storages |
 | `security` | `security_execute` | Encryption, certificates, platform hardening |
-| `storage` | `storage_execute` | Volume groups and  iSCSI client management |
+| `storage` | `storage_execute` | Storage containers, volume groups, and iSCSI client management |
 | `vmm` | `vmm_execute` | VM lifecycle on Nutanix clusters |
-| `volumes` | `volumes_execute` | Volume group management |
+| `volumes` | `volumes_execute` | Volume group lifecycle with iSCSI and NVMe-TCP client attachment |
 
 > **Disclaimer:** Not all namespaces listed above are available on every Prism Central deployment. Tool availability depends on your PC version and which V4 API namespaces it exposes. Run `nutanix-mcp init` with `PC_HOST` configured — only namespaces reported by your PC will be fetched and registered as tools.
 
@@ -244,15 +242,9 @@ For the full attack surface analysis, role requirements, and production hardenin
 
 ---
 
-## Contributing
-
-Contributions are welcome. Open a [GitHub Issue](https://github.com/nutanix-core/ntnx-api-mcp-server/issues) first for bug reports, feature proposals, or documentation problems — issue templates are available for each. Then submit a pull request against the `main` branch. Ensure your changes include unit tests and pass the existing test suite (`pytest -q`). All PRs are reviewed before merge. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branching, and test requirements.
-
----
-
 ## Author
 
-Nikhil Baba Bobba
+Nutanix Developer Team
 
 ---
 
@@ -265,3 +257,12 @@ Nikhil Baba Bobba
 - [Nutanix Developer Hub](https://developer.nutanix.com)
 - [Model Context Protocol Specification](https://modelcontextprotocol.io)
 - [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
+
+---
+
+## Technical Preview Disclaimer
+
+This repository is an open-source project. Please note the following before using it:
+
+* **Non-Production Only:** This project is in a tech preview state. It is **not** designed, tested, or supported for production workloads.
+* **Expect Changes:** As a preview, breaking changes may occur. We encourage you to experiment, test, and share your feedback in non-production environments!

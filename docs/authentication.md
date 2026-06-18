@@ -17,6 +17,7 @@
 4. [TLS configuration](#4-tls-configuration)
 5. [Credential validation at startup](#5-credential-validation-at-startup)
 6. [Attack surface](#6-attack-surface)
+   - [Prompt injection risk](#prompt-injection-risk)
 7. [Audit logging](#7-audit-logging)
 8. [Production security checklist](#8-production-security-checklist)
 

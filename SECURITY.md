@@ -24,6 +24,6 @@ For the full attack surface analysis, production hardening checklist, TLS option
 
 ---
 
-## Actively maintained
+## Project status
 
-This project is maintained by the Nutanix developer experience team. For the full release history and a list of known limitations per version: [CHANGELOG.md](CHANGELOG.md).
+This project is in **Technical Preview**. It is not designed, tested, or supported for production workloads. Breaking changes may occur between releases. For the full release history and known limitations per version: [CHANGELOG.md](CHANGELOG.md).

@@ -24,7 +24,7 @@
 
 | Method | Complexity | Best for | Section |
 |---|---|---|---|
-| Local development | Low | Contributors, ad-hoc testing, personal use on a developer workstation | [§2 Local development](#2-local-development) |
+| Local development | Low | Ad-hoc testing, personal use, and exploratory use on a developer workstation | [§2 Local development](#2-local-development) |
 | Docker | Medium | Isolated, reproducible environments; CI pipelines; teams that standardise on containers | [§3 Docker](#3-docker) |
 | Bare metal / VM | Medium | Persistent service on a server or VM close to Prism Central; production-like deployments | [§4 Bare metal / VM](#4-bare-metal--vm) |
 
@@ -34,9 +34,7 @@
 
 ## 2. Local development
 
-**Audience:** contributors and anyone doing local testing or exploratory use on their own workstation.
-
-> For contributor-specific setup (commit conventions, test requirements, branching rules) see [CONTRIBUTING.md](../CONTRIBUTING.md).
+**Audience:** Anyone doing local testing or exploratory use on their own workstation.
 
 ### 2.1 Prerequisites
 
@@ -234,6 +232,8 @@ A `"startup_ready": true` field in the JSON output confirms everything is workin
 ## 4. Bare metal / VM
 
 **Audience:** operators running the server as a persistent service on a Linux VM or physical server, typically co-located with or near Prism Central.
+
+> **Note:** This section assumes a Linux host. macOS users running the server locally should refer to [§2 Local development](#2-local-development) instead.
 
 ### 4.1 System requirements
 
