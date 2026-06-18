@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 import re
 from typing import Any
 
-from src.generators.models import OperationDiscoveryItem, ToolDefinition, ToolInputSchema
+from src.generators.models import OperationDiscoveryItem, ToolAnnotations, ToolDefinition, ToolInputSchema
 from src.generators.schema_resolver import SchemaResolver
 from src.parsers import OperationInfo, ParameterInfo
 from src.parsers.yaml_parser import NamespaceMetadata, _camel_to_tokens
@@ -158,6 +158,11 @@ class ToolGenerator:
                     },
                     required=["operation"],
                     additional_properties=True,
+                ),
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    openWorldHint=True,
                 ),
                 metadata={
                     "namespace": namespace,

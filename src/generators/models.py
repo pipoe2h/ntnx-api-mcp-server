@@ -18,6 +18,17 @@ class ToolInputSchema(BaseModel):
     additional_properties: bool = Field(default=False, alias="additionalProperties")
 
 
+class ToolAnnotations(BaseModel):
+    """MCP 2025-03-26 tool hint vocabulary — clients use these for confirmation UX."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    readOnlyHint: bool | None = None
+    destructiveHint: bool | None = None
+    idempotentHint: bool | None = None
+    openWorldHint: bool | None = None
+
+
 class ToolDefinition(BaseModel):
     """Top-level MCP tool contract."""
 
@@ -26,6 +37,7 @@ class ToolDefinition(BaseModel):
     name: str
     description: str
     input_schema: ToolInputSchema = Field(alias="inputSchema")
+    annotations: ToolAnnotations | None = None
     metadata: dict[str, Any] | None = None
 
 

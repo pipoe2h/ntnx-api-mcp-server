@@ -27,6 +27,8 @@ All notable changes are documented here. Format follows [Keep a Changelog](https
 **Authentication**
 - HTTP Basic auth (`PC_USERNAME` / `PC_PASSWORD`)
 - API key auth (`PC_API_KEY` via `X-ntnx-api-key` header)
+- API key takes priority over basic auth when both are configured — no startup error raised; a warning is logged
+- 401 / 403 responses from Prism Central are sanitized — raw credential and realm details are never forwarded to the AI client
 - Startup connectivity probe with exponential backoff (3 attempts, 1 s → 8 s between retries)
 - Credentials stored as `SecretStr` — masked in all log output
 
@@ -35,12 +37,18 @@ All notable changes are documented here. Format follows [Keep a Changelog](https
 - Supported config file formats: `.json`, `.yaml`/`.yml`, `.toml`
 - Precedence order: CLI flags > `--config-file` > environment variables / `.env` > defaults
 - `NAMESPACE_OVERRIDE_LIST` to restrict which namespaces are loaded (useful for air-gapped or restricted environments)
+- `READ_ONLY_MODE` — server-side enforcement that rejects all non-GET operations before they reach Prism Central (default: `false`)
+
+**Observability**
+- `X-NTNX-REQUEST-SOURCE: MCP` header injected on every outbound API call for server-side auditability at the Prism Central layer
+- Structured audit log events (`event=api_call`, `event=auth_failure`) emitted per request with method, path, status code, and request ID
 
 **AI client support**
 - Cursor (global `~/.cursor/mcp.json` and workspace-scoped `.cursor/mcp.json`)
 - Claude Desktop (macOS and Windows)
 - MCP Inspector for interactive debugging (`npx @modelcontextprotocol/inspector`)
 - Custom clients via the MCP Python SDK (stdio transport)
+- MCP tool annotations (`readOnlyHint`, `destructiveHint`, `openWorldHint`) on all namespace executor tools — enables native client-side confirmation UX in supporting clients
 
 **Logging**
 - Per-restart log files in `LOG_DIR` with microsecond-precision timestamps
@@ -51,7 +59,6 @@ All notable changes are documented here. Format follows [Keep a Changelog](https
 
 - **Single cluster per process** — one `PC_HOST` per server instance; run separate instances for multiple clusters
 - **No connection pooling** — each tool call opens a new HTTP connection to Prism Central
-- **No built-in read-only mode** — restrict write access via Nutanix RBAC role and `NAMESPACE_OVERRIDE_LIST`
 - **No rate limiting** — Prism Central's own rate limits are the only protection against high call volumes
 - **Hardcoded 30-second request timeout** — not configurable in this version
 - **No async operation polling** — POST/PUT/DELETE calls return a task ID; poll manually via `prism_execute` with the task `extId`

@@ -195,6 +195,19 @@ class RuntimeToolDispatcher:
                 error={"code": "unknown_operation", "detail": f"Unknown operation '{operation_id}'."},
             )
 
+        if self.settings.read_only_mode and operation.method.upper() != "GET":
+            return ToolDispatchResult(
+                ok=False,
+                tool=f"{namespace}_execute",
+                error={
+                    "code": "read_only_mode",
+                    "detail": (
+                        f"Server is in read-only mode. Operation '{operation_id}' "
+                        f"({operation.method.upper()}) is not permitted."
+                    ),
+                },
+            )
+
         path_params: dict[str, Any] = {}
         query_params: dict[str, Any] = {}
         headers: dict[str, Any] = {}

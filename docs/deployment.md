@@ -57,7 +57,7 @@ pip install -e .
 ### 2.3 Configure credentials
 
 ```bash
-cp .env.example .env
+mv .env.example .env
 ```
 
 Edit `.env` with your values:
@@ -67,7 +67,7 @@ PC_HOST=your-pc.example.com
 PC_PORT=9440
 PC_USERNAME=your-username
 PC_PASSWORD=your-password
-PC_INSECURE=true
+PC_INSECURE=false
 ARTIFACTS_DIR=./artifacts
 LOG_DIR=./logs
 ```
@@ -75,6 +75,7 @@ LOG_DIR=./logs
 > Use `PC_API_KEY` instead of (or alongside) `PC_USERNAME`/`PC_PASSWORD` if your cluster uses API key auth.
 > Never commit `.env` — it is already listed in `.gitignore`.
 > Full credential options: [authentication and security guide](./authentication.md).
+> If your Prism Central uses a self-signed certificate, set `PC_INSECURE=true`. Keep it `false` for production environments.
 
 ### 2.4 Download API artifacts
 
@@ -175,7 +176,7 @@ docker run --rm -i \
   -e PC_PORT=9440 \
   -e PC_USERNAME=your-username \
   -e PC_PASSWORD=your-password \
-  -e PC_INSECURE=true \
+  -e PC_INSECURE=false \
   -e ARTIFACTS_DIR=/app/artifacts \
   -e LOG_DIR=/app/logs \
   -v /host/path/artifacts:/app/artifacts \
@@ -200,7 +201,7 @@ Point your MCP client at `docker run` instead of `nutanix-mcp` directly. Example
         "-e", "PC_PORT=9440",
         "-e", "PC_USERNAME=your-username",
         "-e", "PC_PASSWORD=your-password",
-        "-e", "PC_INSECURE=true",
+        "-e", "PC_INSECURE=false",
         "-e", "ARTIFACTS_DIR=/app/artifacts",
         "-v", "/host/path/artifacts:/app/artifacts",
         "nutanix-mcp:latest",
@@ -220,7 +221,7 @@ docker run --rm \
   -e PC_HOST=your-pc.example.com \
   -e PC_USERNAME=your-username \
   -e PC_PASSWORD=your-password \
-  -e PC_INSECURE=true \
+  -e PC_INSECURE=false \
   -e ARTIFACTS_DIR=/app/artifacts \
   -v /host/path/artifacts:/app/artifacts \
   nutanix-mcp:latest run --validate-only

@@ -24,8 +24,7 @@
 
 ## 1. Supported authentication methods
 
-The server supports two authentication schemes. They can coexist: if both are configured, both
-are sent on every request to Prism Central.
+The server supports two authentication schemes. Prefer one per deployment. If both are configured, `PC_API_KEY` takes priority — no startup error is raised.
 
 ### 1.1 HTTP Basic authentication
 
@@ -66,13 +65,12 @@ PC_API_KEY=your-api-key
 
 ### 1.3 Simultaneous use of both methods
 
-If `PC_USERNAME`, `PC_PASSWORD`, and `PC_API_KEY` are all set, the server attaches both the
-`Authorization: Basic` header and the `X-ntnx-api-key` header to every request. Prism Central
-will apply whichever credential it processes first. There is no server-side logic to prefer one
-over the other.
+If `PC_USERNAME`, `PC_PASSWORD`, and `PC_API_KEY` are all set, **`PC_API_KEY` takes priority**:
+the server sends only the `X-ntnx-api-key` header and suppresses the `Authorization: Basic`
+header. Basic auth credentials are ignored.
 
-**Recommended practice:** choose one method per deployment. Sending both doubles the credential
-surface without adding redundancy.
+**Recommended practice:** choose one method per deployment to keep the credential surface minimal
+and the configuration explicit.
 
 ### 1.4 Unsupported methods
 
@@ -198,8 +196,8 @@ tool call to Prism Central) are controlled by the single `PC_INSECURE` / `pc_ins
 
 | Value | Behaviour |
 |---|---|
-| `PC_INSECURE=true` (default) | Passes `verify=False` to `httpx`. The server's TLS certificate is **not verified**. Suitable only for local development or isolated lab environments with self-signed certificates. |
-| `PC_INSECURE=false` | Passes `verify=True` to `httpx`. The server's TLS certificate is verified against the **system certificate store**. Required for production. |
+| `PC_INSECURE=false` (default) | Passes `verify=True` to `httpx`. The server's TLS certificate is verified against the **system certificate store**. Required for production. |
+| `PC_INSECURE=true` | Passes `verify=False` to `httpx`. TLS certificate is **not verified**. Use only for dev/lab with self-signed Prism Central certificates. |
 
 **Configure it (.env):**
 
@@ -378,7 +376,10 @@ could attempt to instruct the AI model to take unintended actions via tool chain
 
 - Human-in-the-loop (HITL) gate for all POST/PUT/DELETE operations
 - Operation allowlist/denylist per deployment
-- Read-only mode flag that blocks all non-GET dispatch
+
+**Implemented:**
+
+- Read-only mode: set `READ_ONLY_MODE=true` to block all non-GET operations server-side before they reach Prism Central
 
 ### No rate limiting or throttling
 
@@ -405,13 +406,14 @@ At the default `INFO` level, the following events are logged:
 
 | Event | What appears in log |
 |---|---|
-| CLI command start | Startup event with command name |
+| CLI command start | `event=cli_started version=<ver> command=<cmd>` |
 | `init` / `refresh` completion | Completion summary (namespace count, duration) |
 | `run` startup mode | `pc_compatible` or `latest_release` |
 | Tool call dispatch | Tool name, `ok: true/false`, error code if applicable |
+| Every Prism Central API call | `event=api_call method=<METHOD> path=<path> status=<HTTP_status> request_id=<uuid>` |
+| Auth failure (401/403) | `event=auth_failure status=<code>` logged at DEBUG; sanitized error returned to agent |
 
-**What is not logged at INFO:** Request URLs, query parameters, request bodies, response
-bodies, HTTP status codes, and credentials.
+**What is not logged at INFO:** Request bodies, response bodies, and credentials. Auth failure details (raw Prism Central error text) are logged only at DEBUG level and are never returned to the AI client.
 
 ### How to enable verbose logging
 

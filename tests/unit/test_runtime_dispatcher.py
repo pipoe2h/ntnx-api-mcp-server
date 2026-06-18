@@ -160,3 +160,49 @@ def test_namespace_execute_for_post_with_request_body(monkeypatch) -> None:  # t
     assert captured["method"] == "POST"
     assert captured["path"] == "/vms"
     assert captured["body"] == {"name": "vm-1"}
+
+
+def test_readonly_mode_blocks_non_get(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """read_only_mode=True must reject POST/PUT/PATCH/DELETE before reaching the API."""
+    operation = OperationInfo(
+        namespace="vmm",
+        operation_id="createVm",
+        path="/vms",
+        method="POST",
+        summary="Create VM",
+        description="Create VM",
+        request_body={"content": {"application/json": {"schema": {"type": "object"}}}},
+    )
+    from src.generators import ToolGenerator
+    load_result = StartupLoadResult(
+        artifacts_source="runtime",
+        artifact_directory=Settings().artifacts_dir,
+        files=[],
+        operations=[operation],
+        namespace_tools=[],
+        discovery_tools=[],
+        operation_index={},
+        generator=ToolGenerator([operation], schemas={}, namespace_metadata={}),
+    )
+    dispatcher = RuntimeToolDispatcher(
+        settings=Settings(pc_host="127.0.0.1", pc_port=9440, read_only_mode=True),
+        load_result=load_result,
+    )
+
+    called = {"count": 0}
+
+    def _should_not_be_called(**kwargs):  # type: ignore[no-untyped-def]
+        called["count"] += 1
+        return {}
+
+    monkeypatch.setattr(dispatcher.api_handler, "execute_request", _should_not_be_called)
+
+    result = dispatcher.call_tool(
+        "vmm_execute",
+        {"operation": "createVm", "request_body": {"name": "vm-1"}},
+    )
+
+    assert result.ok is False
+    assert result.error is not None
+    assert result.error["code"] == "read_only_mode"
+    assert called["count"] == 0

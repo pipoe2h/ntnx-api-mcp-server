@@ -12,16 +12,21 @@ from mcp.server.lowlevel import Server
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 
+import importlib.metadata
+
 from src.config import Settings
 from src.server import build_runtime_dispatcher
 
 
 def _to_mcp_tool(definition: dict[str, Any]) -> types.Tool:
     """Convert internal tool definition to MCP SDK Tool model."""
+    raw_annotations = definition.get("annotations")
+    annotations = types.ToolAnnotations(**raw_annotations) if raw_annotations else None
     return types.Tool(
         name=definition["name"],
         description=definition.get("description"),
         inputSchema=definition.get("inputSchema", {"type": "object", "properties": {}}),
+        annotations=annotations,
         _meta=definition.get("metadata"),
     )
 
@@ -128,13 +133,18 @@ def _build_instructions(namespaces: list[str]) -> str:
 
 
 async def _serve_stdio(settings: Settings) -> None:
+    try:
+        _version = importlib.metadata.version("ntnx-api-mcp-server")
+    except importlib.metadata.PackageNotFoundError:
+        _version = "dev"
+
     dispatcher = build_runtime_dispatcher(settings)
 
     # Derive loaded namespaces for the dynamic instructions field.
     loaded_namespaces = sorted({op.namespace for op in dispatcher.generator.operations})
     server = Server(
         name="nutanix-v4-mcp-server",
-        version="0.1.0",
+        version=_version,
         instructions=_build_instructions(loaded_namespaces),
     )
 
@@ -164,7 +174,7 @@ async def _serve_stdio(settings: Settings) -> None:
             write_stream,
             InitializationOptions(
                 server_name="nutanix-v4-mcp-server",
-                server_version="0.1.0",
+                server_version=_version,
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
                     experimental_capabilities={},

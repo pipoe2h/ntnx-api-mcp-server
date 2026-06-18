@@ -2,17 +2,9 @@
 
 ---
 
-## Reporting a vulnerability
+## Reporting bugs and feature requests
 
-To report a security vulnerability, open a [GitHub Security Advisory](https://github.com/nutanix-core/ntnx-api-mcp-server/security/advisories/new) in this repository. Please do not open a public issue for security vulnerabilities.
-
-Your report should include:
-
-- A description of the vulnerability and its potential impact
-- Steps to reproduce
-- Any suggested mitigations
-
-We aim to respond within 5 business days. We follow a responsible disclosure model — please allow time for a fix to be prepared before publishing details publicly.
+Use [GitHub Issues](https://github.com/nutanix-core/ntnx-api-mcp-server/issues) to report bugs, request features, or flag documentation problems. Issue templates are available for each category — select the appropriate one when opening an issue.
 
 ---
 
@@ -25,8 +17,8 @@ We aim to respond within 5 business days. We follow a responsible disclosure mod
 | Does it open a listening network port? | No — stdio transport only; no inbound connections | [§6 Attack surface](docs/authentication.md#6-attack-surface) |
 | What external connections does it make? | Outbound HTTPS to `PC_HOST:9440` (API calls) and `developers.nutanix.com` (artifact download only, not at runtime) | [§6 Attack surface](docs/authentication.md#6-attack-surface) |
 | Does it log credentials? | No — passwords and API keys are masked in all log output | [§7 Audit logging](docs/authentication.md#7-audit-logging) |
-| Can it be restricted to read-only? | Yes — use a Viewer-role PC account and restrict namespaces via `NAMESPACE_OVERRIDE_LIST` | [§6 Attack surface](docs/authentication.md#6-attack-surface) |
-| License | Apache 2.0 | [LICENSE](LICENSE) |
+| Can it be restricted to read-only? | Yes — set `READ_ONLY_MODE=true` for server-side GET-only enforcement; additionally use a Viewer-role PC account for RBAC-level restriction | [§6 Attack surface](docs/authentication.md#6-attack-surface) |
+| License | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) | — |
 
 For the full attack surface analysis, production hardening checklist, TLS options, and audit logging detail: [authentication and security guide](docs/authentication.md).
 

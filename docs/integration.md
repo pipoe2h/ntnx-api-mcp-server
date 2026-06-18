@@ -2,6 +2,10 @@
 
 Connect your AI client to the Nutanix V4 API MCP Server. Each section below is self-contained. Read only the section for your client.
 
+> **Do not run `nutanix-mcp serve-stdio` manually** when using Cursor, Claude Desktop, or any other AI client configured with an `mcp.json` / `claude_desktop_config.json` entry. The client launches the server process automatically via that config. Running it separately creates a second process on the same stdio pipe and causes the client to fail with a duplicate-process or handshake error.
+>
+> Use `serve-stdio` manually **only** when debugging with MCP Inspector or building a custom client (see those sections below).
+
 > New to MCP? See the [README](../README.md) for an overview of what this server does and how it works.
 
 ---
@@ -26,7 +30,7 @@ Open the config file and add the `nutanix-v4-mcp` entry inside `"mcpServers"`. C
         "PC_PORT": "9440",
         "PC_USERNAME": "admin",
         "PC_PASSWORD": "your_password",
-        "PC_INSECURE": "true",
+        "PC_INSECURE": "false",
         "ARTIFACTS_DIR": "/absolute/path/artifacts"
       }
     }
@@ -34,7 +38,12 @@ Open the config file and add the `nutanix-v4-mcp` entry inside `"mcpServers"`. C
 }
 ```
 
-Replace `/absolute/path/.venv/bin/nutanix-mcp` with the absolute path to the `nutanix-mcp` binary inside your virtual environment. Use `which nutanix-mcp` (with the venv activated) to find it.
+Replace `/absolute/path/.venv/bin/nutanix-mcp` with the absolute path to the `nutanix-mcp` binary, and `/absolute/path/artifacts` with the absolute path to your artifacts directory. Both **must be absolute paths** — Cursor does not resolve relative paths from the config file location.
+
+```bash
+which nutanix-mcp   # prints the full binary path  (use for "command")
+pwd                  # prints the project root      (append /artifacts for ARTIFACTS_DIR)
+```
 
 To authenticate with an API key instead of username/password, replace `PC_USERNAME` and `PC_PASSWORD` with a single `PC_API_KEY` key:
 
@@ -48,7 +57,7 @@ To authenticate with an API key instead of username/password, replace `PC_USERNA
         "PC_HOST": "10.1.1.10",
         "PC_PORT": "9440",
         "PC_API_KEY": "your-api-key",
-        "PC_INSECURE": "true",
+        "PC_INSECURE": "false",
         "ARTIFACTS_DIR": "/absolute/path/artifacts"
       }
     }
@@ -70,6 +79,7 @@ To authenticate with an API key instead of username/password, replace `PC_USERNA
 - The project-scoped config (`<workspace>/.cursor/mcp.json`) takes precedence over the global config for that workspace. If the server appears twice, check both locations.
 - After editing the config file, reload MCP servers from **Settings → MCP → Reload** rather than restarting Cursor entirely.
 - Artifacts must be downloaded before Cursor launches the server. Run `nutanix-mcp init` in your terminal once before adding the config. If `ARTIFACTS_DIR` is empty, the server process starts but immediately exits with `RuntimeError: No YAML artifacts found`, and Cursor will show the server as disconnected.
+- If the server fails to connect with a TLS error, set `PC_INSECURE` to `"true"` in the `env` block. This is required for Prism Central instances using self-signed certificates (common in lab deployments). See [TLS handshake error](#tls-handshake-error-on-startup) for details.
 
 ---
 
@@ -93,7 +103,7 @@ Open the config file and add the `nutanix-v4-mcp` entry inside `"mcpServers"`. C
         "PC_PORT": "9440",
         "PC_USERNAME": "admin",
         "PC_PASSWORD": "your_password",
-        "PC_INSECURE": "true",
+        "PC_INSECURE": "false",
         "ARTIFACTS_DIR": "/absolute/path/artifacts"
       }
     }
@@ -113,7 +123,7 @@ To authenticate with an API key instead of username/password, replace `PC_USERNA
         "PC_HOST": "10.1.1.10",
         "PC_PORT": "9440",
         "PC_API_KEY": "your-api-key",
-        "PC_INSECURE": "true",
+        "PC_INSECURE": "false",
         "ARTIFACTS_DIR": "/absolute/path/artifacts"
       }
     }
@@ -134,6 +144,7 @@ To authenticate with an API key instead of username/password, replace `PC_USERNA
 - Claude Desktop requires a **full restart** (exit completely, not just close the window) to pick up config changes. Reload is not available.
 - On macOS, `~/Library/Application Support/` is hidden in Finder. Use `Cmd+Shift+G` in Finder or `open ~/Library/Application\ Support/Claude/` in Terminal.
 - The `command` path must be absolute. If you installed into a system Python or pyenv environment, confirm the exact path with `which nutanix-mcp` while that environment is active.
+- If the server fails to connect with a TLS error, set `PC_INSECURE` to `"true"` in the `env` block. Required for Prism Central instances using self-signed certificates. See [TLS handshake error](#tls-handshake-error-on-startup) for details.
 
 ---
 
@@ -152,8 +163,8 @@ Pass credentials as environment variables before the command:
 ```bash
 PC_HOST=10.1.1.10 \
 PC_USERNAME=admin \
-PC_PASSWORD=your_password \
-PC_INSECURE=true \
+PC_PASSWORD=Admin1234! \
+PC_INSECURE=false \
 npx @modelcontextprotocol/inspector .venv/bin/nutanix-mcp serve-stdio
 ```
 
@@ -163,6 +174,57 @@ npx @modelcontextprotocol/inspector .venv/bin/nutanix-mcp serve-stdio
 2. The **Server** panel shows connection status. A green indicator means the stdio handshake completed.
 3. Click **Tools** — you should see all registered tools: `listOperations`, `getOperationSchema`, `getCodeSample`, `getOperationPermissions`, and namespace executor tools.
 4. Select `listOperations`, click **Run** with no arguments — results appear in the response panel.
+
+---
+
+## Human-in-the-Loop (HITL) confirmation
+
+Many Nutanix write operations (create, update, delete, failover) are irreversible or have broad blast radius. It is strongly recommended to configure your AI client to pause and ask for explicit confirmation before executing any non-read operation.
+
+### Cursor
+
+Cursor's built-in HITL is controlled by the agent's **approval mode** setting. With approval mode enabled, Cursor asks the user to approve each tool call before it is executed.
+
+To enable it globally, open Cursor Settings → **Agent** and set **Tool Approval Mode** to `"require approval"`.
+
+Alternatively, instruct the agent in your system prompt or at the start of each session:
+
+```
+Before calling any Nutanix operation that creates, modifies, or deletes a resource
+(any POST, PUT, PATCH, or DELETE), stop and ask me for confirmation. Show me the
+exact parameters you intend to send and wait for my explicit "yes" before proceeding.
+```
+
+### Claude Desktop
+
+Claude Desktop does not expose a built-in HITL toggle. Use a persistent system prompt in `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "nutanix-v4-mcp": {
+      "command": "/absolute/path/.venv/bin/nutanix-mcp",
+      "args": ["serve-stdio"],
+      "env": { "..." : "..." }
+    }
+  },
+  "systemPrompt": "Before calling any Nutanix MCP operation that creates, modifies, or deletes a resource (POST, PUT, PATCH, DELETE), always show me the operation name and parameters and wait for explicit confirmation before executing."
+}
+```
+
+> **Note:** The `systemPrompt` key is supported in Claude Desktop as of version 0.7+. Check your version if it does not take effect.
+
+### MCP tool annotations
+
+All namespace executor tools (`vmm_execute`, `networking_execute`, etc.) carry standard [MCP tool annotations](https://spec.modelcontextprotocol.io/specification/2025-03-26/server/tools/#tool-annotations):
+
+- `readOnlyHint: false` — these tools can modify state
+- `destructiveHint: true` — mutations may be irreversible
+- `openWorldHint: true` — calls reach an external system (Prism Central)
+
+MCP clients that surface these hints (Cursor, Claude Desktop, custom clients) will apply their native confirmation UX for write operations without requiring a custom system prompt. Consult your client's documentation for how it handles `destructiveHint`.
+
+For server-side enforcement regardless of client behavior, set `READ_ONLY_MODE=true` in your environment config — the server will reject all non-GET operations before they reach Prism Central.
 
 ---
 
@@ -185,7 +247,7 @@ server_params = StdioServerParameters(
         "PC_HOST": "10.1.1.10",
         "PC_USERNAME": "admin",
         "PC_PASSWORD": "your_password",
-        "PC_INSECURE": "true",
+        "PC_INSECURE": "false",
     },
 )
 

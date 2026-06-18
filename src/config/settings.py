@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     """Runtime configuration for the MCP server."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(Path(__file__).resolve().parents[2] / ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -35,7 +35,10 @@ class Settings(BaseSettings):
     pc_username: str | None = Field(default=None, description="Prism Central username")
     pc_password: SecretStr | None = Field(default=None, description="Prism Central password")
     pc_api_key: SecretStr | None = Field(default=None, description="Prism Central API key")
-    pc_insecure: bool = Field(default=True, description="Skip TLS certificate verification")
+    pc_insecure: bool = Field(
+        default=False,
+        description="Skip TLS certificate verification (default: False — enforce TLS)",
+    )
 
     # Runtime locations
     artifacts_dir: Path | None = Field(default=None, description="Runtime artifacts directory")
@@ -50,6 +53,12 @@ class Settings(BaseSettings):
     namespace_override_list: str | None = Field(
         default=None,
         description="Comma-separated namespace override list for restricted environments",
+    )
+
+    # Runtime controls
+    read_only_mode: bool = Field(
+        default=False,
+        description="When true, reject all non-GET operations before they reach Prism Central",
     )
 
     # Logging
@@ -173,6 +182,7 @@ def _build_env_payload() -> dict[str, Any]:
         "LOG_DIR": "log_dir",
         "NAMESPACE_SOURCE_URL": "namespace_source_url",
         "NAMESPACE_OVERRIDE_LIST": "namespace_override_list",
+        "READ_ONLY_MODE": "read_only_mode",
     }
     env_payload: dict[str, Any] = {}
     for env_key, field_name in env_keys.items():

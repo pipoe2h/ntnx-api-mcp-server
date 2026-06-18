@@ -12,6 +12,7 @@ Every common failure mode, with exact error strings, root causes, and step-by-st
   - [The `unknown_operation` error](#the-unknown_operation-error)
   - [Other tool execution errors](#other-tool-execution-errors)
 - [AI client integration](#ai-client-integration)
+  - [Tools show as loading or "no MCP resources found"](#tools-show-as-loading-or-agent-reports-no-mcp-resources-found)
 - [Configuration](#configuration)
 - [Performance](#performance)
 - [FAQ](#faq)
@@ -135,7 +136,7 @@ sudo cp /path/to/pc-ca.crt /usr/local/share/ca-certificates/
 sudo update-ca-certificates
 ```
 
-`PC_INSECURE` defaults to `true` in version `0.1.0`. For production clusters, explicitly set `PC_INSECURE=false` and install the CA certificate. Custom CA bundle paths are not configurable in version `0.1.0`; the server uses the system trust store via the `httpx` default.
+`PC_INSECURE` defaults to `false`. For production clusters, keep the default and install the CA certificate into the system trust store. Custom CA bundle paths are not configurable; the server uses the system trust store via the `httpx` default.
 
 ---
 
@@ -239,7 +240,7 @@ PC_USERNAME=admin
 PC_PASSWORD=your_password
 ```
 
-You only need one auth method. Both can coexist; if both are configured, both are sent on every request.
+If both `PC_USERNAME`/`PC_PASSWORD` and `PC_API_KEY` are set, `PC_API_KEY` takes priority — no error is raised.
 
 ---
 
@@ -268,30 +269,43 @@ You only need one auth method. Both can coexist; if both are configured, both ar
 
 ---
 
-### HTTP 401 from a tool call (`execution_error` with 401 text)
+### HTTP 401 / 403 from a tool call — authentication error
 
-**Symptom:** An `_execute` tool call returns:
+**Symptom:** An `_execute` tool call returns a sanitized auth error:
 ```json
 {
-  "ok": false,
+  "ok": true,
   "tool": "vmm_execute",
-  "error": {
-    "code": "execution_error",
-    "detail": "..."
-  }
+  "payload": {
+    "error": "Authentication failed. Verify PC_API_KEY or PC_USERNAME/PC_PASSWORD.",
+    "hint": "Check credentials and Prism Central user permissions."
+  },
+  "error": null
 }
 ```
-where `detail` contains `401` or `unauthorized`.
 
-**Cause:** Credentials are valid enough to pass the startup probe but lack permission for this specific API endpoint or namespace.
+The server sanitizes raw 401/403 responses from Prism Central — credential details are never returned to the AI client.
+
+**Possible causes:** Credentials are wrong, the account is locked, or the account lacks permission for this specific API endpoint or namespace.
 
 **Fix:**
-1. Use `getOperationPermissions` to check which roles the operation requires:
+1. Verify credentials work directly against Prism Central:
+   ```bash
+   # API key auth
+   curl -k -H "X-ntnx-api-key: abc123def456" https://10.1.1.10:9440/api/prism/v4.0/config/cluster
+   # Basic auth
+   curl -k -u admin:Admin1234! https://10.1.1.10:9440/api/prism/v4.0/config/cluster
+   ```
+2. Use `getOperationPermissions` to check which roles the operation requires:
    ```
    getOperationPermissions(operation="listVms")
    ```
-2. Compare the `required_roles` field against your account's roles in Prism Central.
-3. Full role requirements per namespace: [authentication and security guide](authentication.md)
+3. Compare the `required_roles` field against your account's roles in Prism Central.
+4. For API key: confirm the key is active in Prism Central → **Settings → API Keys**.
+5. Full role requirements per namespace: [authentication and security guide](authentication.md)
+
+---
+
 
 ---
 
@@ -563,7 +577,72 @@ Missing required path parameters: extId
 
 ---
 
+## Installation
+
+---
+
+### `pip install` fails with dependency resolution errors
+
+**Symptom:** Running `pip install -e .` produces errors like:
+
+```
+ERROR: Cannot install ntnx-api-mcp-server because these package versions have conflicting dependencies.
+```
+
+or:
+
+```
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed.
+```
+
+**Cause:** pip version 21 and earlier use a legacy resolver that does not correctly handle complex dependency graphs. pip 24+ uses a stricter resolver that surfaces conflicts earlier and resolves them correctly.
+
+**Fix:** Upgrade pip before installing:
+
+```bash
+pip install --upgrade pip
+pip install -e .
+```
+
+Verify you have pip 24+:
+
+```bash
+pip --version
+# Expected: pip 24.x or higher
+```
+
+If you are on a managed Python environment where upgrading pip system-wide is not possible, create a fresh virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install --upgrade pip
+pip install -e .
+```
+
+---
+
 ## AI client integration
+
+---
+
+### Tools show as loading or agent reports "no MCP resources found"
+
+**Symptom:** Cursor or Claude shows the server as loading for 15–25 seconds, or the agent says it cannot find any Nutanix tools even though the server appears enabled in settings.
+
+**Cause:** The server parses all downloaded OpenAPI YAML files synchronously during the MCP handshake. Depending on how many namespaces are loaded and the machine's I/O speed, this can take 15–25 seconds. If the AI client enforces a strict handshake timeout, it may give up before the tools are registered.
+
+**Fix:**
+1. Wait 20–30 seconds after toggling the server on before sending any queries. The server is ready once tools appear in the tool list.
+2. Reduce the number of loaded namespaces by downloading only the ones you need:
+   ```bash
+   nutanix-mcp init   # only fetches namespaces your PC reports as available
+   ```
+   Removing unused YAML files from `ARTIFACTS_DIR` reduces parse time proportionally.
+3. If the server still appears as disconnected after 30 seconds, check the server log for errors:
+   ```bash
+   ls -lt logs/ | head -5   # find the most recent log file
+   ```
 
 ---
 
@@ -926,14 +1005,14 @@ Running `nutanix-mcp init` or `nutanix-mcp refresh` writes credentials in plaint
 <details>
 <summary><strong>Which operations are read-only vs destructive?</strong></summary>
 
-The server does not enforce a read-only mode. All HTTP methods supported by the loaded OpenAPI specs (GET, POST, PUT, PATCH, DELETE) are executable.
+By default all HTTP methods are executable. Set `READ_ONLY_MODE=true` in your `.env` or client config `env` block to have the server reject all non-GET operations before they reach Prism Central.
 
 - **Read-only operations:** All HTTP GET operations (107 in the current default artifact set).
 - **Destructive operations:** HTTP POST (create), PUT (replace), PATCH (update), DELETE (destroy).
 
 Use `getOperationSchema` to check the `method` field before calling an unfamiliar operation.
 
-To reduce risk in production, restrict which namespaces load by setting `NAMESPACE_OVERRIDE_LIST` to only the namespaces you need.
+To further reduce risk in production, restrict which namespaces load by setting `NAMESPACE_OVERRIDE_LIST` to only the namespaces you need, and use a Viewer-role Prism Central account for RBAC-level enforcement.
 
 </details>
 

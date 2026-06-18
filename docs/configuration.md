@@ -34,16 +34,16 @@ PC_USERNAME=your-username
 PC_PASSWORD=your-password
 
 # API key for the X-ntnx-api-key header.
-# Alternative to PC_USERNAME/PC_PASSWORD. Both schemes can coexist; if both
-# are set, both are sent on every request.
+# Prefer over basic auth when both are set — PC_API_KEY takes priority.
+# Stored in memory as SecretStr; masked as ********** in all log output.
 # Stored in memory as SecretStr; masked as ********** in all log output.
 PC_API_KEY=your-api-key
 
 # ── TLS ───────────────────────────────────────────────────────────────────────
 
-# Set to "false" to enable TLS certificate verification (recommended for production).
-# Default is "true" (verification disabled) — set to "false" in production.
-PC_INSECURE=true
+# Set to "false" to enable TLS certificate verification (default; recommended for production).
+# Set to "true" to disable certificate verification — use only for dev/test with self-signed certs.
+PC_INSECURE=false
 
 # ── Artifact storage ──────────────────────────────────────────────────────────
 
@@ -79,11 +79,6 @@ LOG_DIR=/home/user/.nutanix-mcp/logs
 # Default: https://developers.nutanix.com/api/v1/namespaces
 NAMESPACE_SOURCE_URL=https://developers.nutanix.com/api/v1/namespaces
 
-# Comma-separated list of namespace names to fetch instead of the full portal list.
-# Leave empty to use the discovered list. Useful in restricted or air-gapped environments.
-# Example: "vmm,prism,iam"
-# Default: (empty — all discovered namespaces are used)
-NAMESPACE_OVERRIDE_LIST=
 ```
 
 The same keys can be placed in a `.json`, `.yaml`/`.yml`, or `.toml` file and passed via
@@ -96,13 +91,12 @@ pc_port                = 9440
 pc_username            = "your-username"
 pc_password            = "your-password"
 pc_api_key             = "your-api-key"
-pc_insecure            = true
+pc_insecure            = false
 artifacts_dir          = "/home/user/.nutanix-mcp/artifacts"
 log_level              = "INFO"
 log_format             = "text"
 log_dir                = "/home/user/.nutanix-mcp/logs"
 namespace_source_url   = "https://developers.nutanix.com/api/v1/namespaces"
-namespace_override_list = ""
 ```
 
 ---
@@ -123,23 +117,23 @@ directory (loaded automatically via `pydantic-settings`). Variable names are cas
 
 | Variable | Description | Required | Default | Example |
 |---|---|---|---|---|
-| `PC_USERNAME` | Basic-auth username | One of `PC_USERNAME`/`PC_PASSWORD` or `PC_API_KEY` required when `PC_HOST` is set | *(none)* | `admin` |
+| `PC_USERNAME` | Basic-auth username — **mutually exclusive with `PC_API_KEY`** | One of `PC_USERNAME`/`PC_PASSWORD` **or** `PC_API_KEY` required when `PC_HOST` is set | *(none)* | `admin` |
 | `PC_PASSWORD` | Basic-auth password | Required when `PC_USERNAME` is set | *(none)* | `your-password` |
-| `PC_API_KEY` | API key sent as `X-ntnx-api-key` header | One of `PC_USERNAME`/`PC_PASSWORD` or `PC_API_KEY` required when `PC_HOST` is set | *(none)* | `ntnx-abc123…` |
+| `PC_API_KEY` | API key sent as `X-ntnx-api-key` header — **mutually exclusive with `PC_USERNAME`** | One of `PC_USERNAME`/`PC_PASSWORD` **or** `PC_API_KEY` required when `PC_HOST` is set | *(none)* | `ntnx-abc123…` |
 
 ### TLS
 
 | Variable | Description | Required | Default | Example |
 |---|---|---|---|---|
-| `PC_INSECURE` | `"true"` disables TLS certificate verification; `"false"` enables it | No | `"true"` | `"false"` |
+| `PC_INSECURE` | `"true"` disables TLS certificate verification; `"false"` enables it | No | `"false"` | `"true"` |
 
 ### Behavior
 
 | Variable | Description | Required | Default | Example |
 |---|---|---|---|---|
-| `ARTIFACTS_DIR` | Directory for downloaded OpenAPI YAML files; created on startup | No | `<project_root>/artifacts` | `/opt/nutanix-mcp/artifacts` |
+| `ARTIFACTS_DIR` | Directory for downloaded OpenAPI YAML files; created on startup. **Use an absolute path** in AI client config files. | No | `<project_root>/artifacts` | `/opt/nutanix-mcp/artifacts` |
 | `NAMESPACE_SOURCE_URL` | Namespace-list discovery endpoint | No | `https://developers.nutanix.com/api/v1/namespaces` | *(use default)* |
-| `NAMESPACE_OVERRIDE_LIST` | Comma-separated namespace names; overrides discovery when set | No | *(none — all discovered namespaces used)* | `"vmm,prism,iam"` |
+| `READ_ONLY_MODE` | When `"true"`, all non-GET operations are rejected server-side before reaching Prism Central | No | `"false"` | `"true"` |
 
 ### Logging
 
@@ -171,7 +165,7 @@ file key and an environment variable are set, see [Precedence rules](#precedence
 | `log_format` | string | `"text"` | `"text"` or `"json"` |
 | `log_dir` | path string | `<project_root>/logs` | Per-restart log file directory; created if absent |
 | `namespace_source_url` | URL string | `https://developers.nutanix.com/api/v1/namespaces` | Namespace-list discovery endpoint |
-| `namespace_override_list` | comma-separated string | *(none)* | Explicit namespace list; bypasses discovery when set |
+| `read_only_mode` | boolean | `false` | `true` = block all non-GET operations server-side; `false` = allow write operations |
 
 ### Notes on specific keys
 
@@ -188,11 +182,6 @@ http://{pc_host}:{pc_port}/api    # when pc_port != 9440
 
 In `.env` files, pass the string `"true"` or `"false"`. In `.toml`/`.json`/`.yaml` files, use the
 native boolean `true` / `false`. Pydantic parses both forms.
-
-**`namespace_override_list`**
-
-Provide a comma-separated string. Whitespace around each name is stripped. An empty string or
-absent key means all namespaces returned by `namespace_source_url` are used.
 
 ---
 
@@ -232,7 +221,7 @@ Validation runs in this sequence:
 
 1. CLI args are parsed.
 2. Settings are loaded (env → config-file → CLI overrides).
-3. Directory paths (`artifacts_dir`, `log_dir`, `default_artifacts_dir`) are created if absent.
+3. Directory paths (`artifacts_dir`, `log_dir`) are created if absent.
 4. Logging is configured; a new per-restart log file is opened.
 5. For `serve-stdio`: YAML artifacts are loaded from `artifacts_dir`; if none are found startup fails.
 6. For `run` (without `--validate-only`) when `PC_HOST` is set: a connectivity/auth probe is
@@ -243,7 +232,7 @@ Validation runs in this sequence:
 
 | Condition | Exact error message | Exit code |
 |---|---|---|
-| `PC_HOST` set but neither auth method configured | `"No Prism Central auth configured. Provide PC_API_KEY or PC_USERNAME/PC_PASSWORD."` | `1` (via `StartupAuthError`) |
+| `PC_HOST` set but neither auth method configured | `"No Prism Central auth configured. Set either PC_API_KEY or PC_USERNAME + PC_PASSWORD (not both)."` | `1` (via `StartupAuthError`) |
 | `PC_HOST` absent on `run` | Probe is skipped; warning printed: `"PC_HOST is not configured. Running with latest-release artifacts; API execution calls require a configured Prism Central host."` | `0` |
 | `PC_HOST` absent on `serve-stdio` | Server starts; all `_execute` tool calls fail at runtime with `ValueError: PC_HOST is required to build Prism Central base URL.` | — |
 | No YAML artifacts found | `"No YAML artifacts found in runtime or bundled directories."` (raised as `RuntimeError`) | `1` |
@@ -293,7 +282,7 @@ Failed-startup JSON shape (printed to stdout, exit code `1`):
 
 | Key / Variable | Type | Default | What it does |
 |---|---|---|---|
-| `PC_INSECURE` / `pc_insecure` | boolean | `true` | When `true`, passes `verify=False` to the `httpx` client for all outgoing requests (startup probe, artifact downloads, and every tool call). When `false`, the system certificate store is used to verify the server's TLS certificate. |
+| `PC_INSECURE` / `pc_insecure` | boolean | `false` | When `true`, passes `verify=False` to the `httpx` client (TLS verification disabled). When `false` (default), the system certificate store is used to verify the server's TLS certificate. |
 
 **Applicable to:**
 - Startup connectivity probe (`src/auth/readiness.py`)

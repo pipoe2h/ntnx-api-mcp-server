@@ -79,18 +79,20 @@ def test_init_works_without_pc_host_in_latest_release_mode(
         processed: int = 1
         success: int = 1
         skipped: int = 0
+        not_available: int = 0
         failed: int = 0
         deleted_artifacts: int = 0
         restored_artifacts: int = 0
         duration_ms: int = 10
         artifact_mode: str = "latest_release"
         skipped_reasons: dict[str, int] | None = None
+        not_available_reasons: dict[str, int] | None = None
         failed_reasons: dict[str, int] | None = None
 
     monkeypatch.setattr(
         pull_module,
         "download_yamls",
-        lambda settings, refresh, force: _Summary(skipped_reasons={}, failed_reasons={}),
+        lambda settings, refresh, force: _Summary(skipped_reasons={}, not_available_reasons={}, failed_reasons={}),
     )
 
     cli_module.main()

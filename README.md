@@ -2,7 +2,6 @@
 
 > Expose Nutanix V4 APIs as tools callable by AI assistants — Claude, Cursor, and any MCP-compatible client.
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](pyproject.toml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
@@ -39,14 +38,14 @@ The server exposes one `<namespace>_execute` tool per namespace. Namespaces are 
 | `clustermgmt` | `clustermgmt_execute` | Hosts, clusters, bmc, cluster profiles, SSL certificates, storage containers |
 | `datapolicies` | `datapolicies_execute` | Protection policies, Disaster recovery plans and storage policies |
 | `dataprotection` | `dataprotection_execute` | Consistency groups, recovery points, protection and recovery plans actions |
-| `files` | `files_execute` | Virtual file servers, shares, storage provisioning, security controls,  |
-| `iam` | `iam_execute` | Users, roles, identiy providers, service accounts (API KEYs) and access policies |
+| `files` | `files_execute` | Virtual file servers, shares, storage provisioning, security controls |
+| `iam` | `iam_execute` | Users, roles, identity providers, service accounts (API keys) and access policies |
 | `licensing` | `licensing_execute` | License management, compliance, and feature entitlements |
 | `lifecycle` | `lifecycle_execute` | Infrastructure, software, and firmware upgrades |
 | `microseg` | `microseg_execute` | Network security policies, service groups, address groups |
 | `monitoring` | `monitoring_execute` | Alerts, alert policies, events, and audits |
 | `multidomain` | `multidomain_execute` | Cross-domain services across on-prem, NC2, and edge |
-| `networking` | `networking_execute` | AHV networking, advanced networking configuration like BGP,vSswitch,VPC and subnet management |
+| `networking` | `networking_execute` | AHV networking, advanced networking configuration like BGP, vSwitch, VPC and subnet management |
 | `objects` | `objects_execute` | Nutanix Object Store service |
 | `opsmgmt` | `opsmgmt_execute` | Shared platform functionality for aiops, devops, secops, finops |
 | `prism` | `prism_execute` | Tasks, categories, batch operations, domain managers, backup targets, external storages |
@@ -80,7 +79,7 @@ cd ntnx-api-mcp-server
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e .
-cp .env.example .env               # edit with your PC_HOST and credentials
+mv .env.example .env               # edit with your PC_HOST and credentials
 nutanix-mcp init
 nutanix-mcp run --validate-only
 ```
@@ -96,11 +95,13 @@ Settings are read from environment variables, a `.env` file in the project root,
 Key variables:
 
 - `PC_HOST` — Prism Central IP or FQDN (required for live API execution)
-- `PC_USERNAME` + `PC_PASSWORD` — basic auth credentials
-- `PC_API_KEY` — API key sent as `X-ntnx-api-key` (alternative to username/password)
-- `PC_INSECURE=true` — disables TLS verification (default; set to `false` in production)
+- `PC_USERNAME` + `PC_PASSWORD` — basic auth credentials (use one auth method, not both)
+- `PC_API_KEY` — API key sent as `X-ntnx-api-key` (alternative to username/password; takes priority if both are set)
+- `PC_INSECURE=false` — enforces TLS verification by default; set to `true` only for dev/lab with self-signed certificates
+- `READ_ONLY_MODE=true` — blocks all non-GET operations server-side (optional; default `false`)
+- `ARTIFACTS_DIR` — **must be an absolute path** when set in AI client config files
 
-For all 12 configuration options, defaults, and validation behavior: [configuration reference](docs/configuration.md).
+For all configuration options, defaults, and validation behavior: [configuration reference](docs/configuration.md).
 
 ### Config file support
 
@@ -136,7 +137,7 @@ nutanix-mcp run --validate-only
 
 ### `nutanix-mcp serve-stdio`
 
-Starts the MCP stdio server. **Use this command in MCP client configuration.**
+Starts the MCP stdio server. AI clients (Cursor, Claude Desktop) invoke this automatically via their config file — you do not run it directly. Run it manually only when using MCP Inspector or a custom programmatic client.
 
 ```bash
 nutanix-mcp serve-stdio
@@ -146,69 +147,11 @@ nutanix-mcp serve-stdio
 
 ## Connecting to AI clients
 
-The server communicates over **stdio**, so any MCP-compatible client that supports subprocess-based stdio transport can connect. The pattern is always the same: point your client at the `nutanix-mcp serve-stdio` command.
+The server communicates over **stdio**. Any MCP-compatible client that supports subprocess-based stdio transport can connect by pointing its config at the `nutanix-mcp serve-stdio` command with credentials passed as environment variables.
 
-### Cursor
+For step-by-step config for Cursor, Claude Desktop, MCP Inspector, and custom Python clients — including exact JSON blocks, absolute path requirements, and verification steps — see the [integration guide](docs/integration.md).
 
-Open or create `~/.cursor/mcp.json` (or your workspace `.cursor/mcp.json`) and add:
-
-```json
-{
-  "mcpServers": {
-    "nutanix-v4-mcp": {
-      "command": "/absolute/path/.venv/bin/nutanix-mcp",
-      "args": ["serve-stdio"],
-      "env": {
-        "PC_HOST": "10.1.1.10",
-        "PC_PORT": "9440",
-        "PC_USERNAME": "admin",
-        "PC_PASSWORD": "your_password",
-        "PC_INSECURE": "true",
-        "ARTIFACTS_DIR": "/absolute/path/artifacts"
-      }
-    }
-  }
-}
-```
-
-Restart Cursor. The Nutanix tools will appear in the MCP tools panel.
-
-### Claude Desktop
-
-Open `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows) and add the same block under `"mcpServers"`:
-
-```json
-{
-  "mcpServers": {
-    "nutanix-v4-mcp": {
-      "command": "/absolute/path/.venv/bin/nutanix-mcp",
-      "args": ["serve-stdio"],
-      "env": {
-        "PC_HOST": "10.1.1.10",
-        "PC_PORT": "9440",
-        "PC_USERNAME": "admin",
-        "PC_PASSWORD": "your_password",
-        "PC_INSECURE": "true",
-        "ARTIFACTS_DIR": "/absolute/path/artifacts"
-      }
-    }
-  }
-}
-```
-
-Restart Claude Desktop after saving.
-
-
-
-### MCP Inspector (for testing)
-
-```bash
-npx @modelcontextprotocol/inspector .venv/bin/nutanix-mcp serve-stdio
-```
-
-Open `http://localhost:5173` in your browser to call every tool interactively.
-
-For full client setup details including verification steps and client-specific gotchas: [integration guide](docs/integration.md).
+For a first-time walkthrough from install to first tool call: [quickstart guide](docs/quickstart.md).
 
 ---
 
@@ -227,12 +170,17 @@ These 4 tools are always registered regardless of which namespace artifacts are 
 
 ### Namespace execution tools
 
-Each namespace in the table above has a corresponding `<namespace>_execute` tool registered at startup from the downloaded YAML artifacts. All executor tools share a common parameter set:
+Each namespace has a corresponding `<namespace>_execute` tool registered at startup from the downloaded YAML artifacts. Two parameters apply to every call:
 
 | Parameter | Type | Description |
 |---|---|---|
 | `operation` | string (**required**) | The operation id to call |
-| `request_body` | object | JSON body for POST / PUT / PATCH payloads |
+| `request_body` | object | JSON body for POST / PUT / PATCH payloads — omit for GET / DELETE |
+
+List and search operations additionally accept OData query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
 | `_filter` | string | OData `$filter` expression (e.g., `name eq 'my-vm'`) — see [OData filter syntax](https://www.odata.org/documentation/) |
 | `_limit` | integer | Max results to return (1–100) |
 | `_page` | integer | Page offset (0-based) |
@@ -288,7 +236,7 @@ Set `LOG_FORMAT=json` for structured JSON output suitable for log aggregation pi
 ## Security notes
 
 - **At least one auth method is required** — the server fails startup if neither `PC_API_KEY` nor `PC_USERNAME`/`PC_PASSWORD` is set when `PC_HOST` is configured.
-- **TLS verification** is skipped by default (`PC_INSECURE=true`) for self-signed Prism Central certificates. Set `PC_INSECURE=false` in production environments.
+- **TLS verification** is enforced by default (`PC_INSECURE=false`). Set `PC_INSECURE=true` only for dev or lab environments running Prism Central with self-signed certificates.
 - **Secrets are never logged** — `PC_PASSWORD` and `PC_API_KEY` are stored as `SecretStr` and masked in all log output.
 - **Input validation** — all tool call payloads are validated against the operation contract before execution. Unknown fields are rejected with a structured error.
 
@@ -298,13 +246,13 @@ For the full attack surface analysis, role requirements, and production hardenin
 
 ## Contributing
 
-Contributions are welcome. Open an issue first for major feature proposals, then submit a pull request against the `main` branch. Ensure your changes include unit tests and pass the existing test suite (`pytest -q`). All PRs are reviewed before merge. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branching, and test requirements.
+Contributions are welcome. Open a [GitHub Issue](https://github.com/nutanix-core/ntnx-api-mcp-server/issues) first for bug reports, feature proposals, or documentation problems — issue templates are available for each. Then submit a pull request against the `main` branch. Ensure your changes include unit tests and pass the existing test suite (`pytest -q`). All PRs are reviewed before merge. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branching, and test requirements.
 
 ---
 
-## License
+## Author
 
-[Apache 2.0](LICENSE)
+Nikhil Baba Bobba
 
 ---
 

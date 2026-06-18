@@ -125,6 +125,8 @@ def test_execute_request_supports_body_and_api_key_header(monkeypatch) -> None: 
         pc_host="127.0.0.1",
         pc_port=9440,
         pc_api_key="api-key-123",
+        pc_username=None,
+        pc_password=None,
     )
     captured: dict[str, object] = {}
 
@@ -153,3 +155,43 @@ def test_execute_request_supports_body_and_api_key_header(monkeypatch) -> None: 
     assert isinstance(sent_headers, dict)
     assert sent_headers["X-ntnx-api-key"] == "api-key-123"
     assert sent_headers["X-Custom"] == "yes"
+    assert sent_headers["X-NTNX-REQUEST-SOURCE"] == "MCP"
+
+
+def test_execute_request_sanitizes_401(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    def _request_impl(**kwargs):  # type: ignore[no-untyped-def]
+        return _FakeResponse(
+            status_code=401,
+            payload={"message": "Unauthorized", "realm": "prism", "token": "secret123"},
+        )
+
+    monkeypatch.setattr(
+        "src.handlers.api_handler.httpx.Client",
+        lambda **_kwargs: _FakeClient(_request_impl),
+    )
+
+    result = APIHandler(_settings()).execute_get_request(path="/vms", path_params={})
+
+    assert "error" in result
+    assert "Authentication failed" in result["error"]
+    assert "secret123" not in str(result)
+    assert "Unauthorized" not in str(result)
+
+
+def test_execute_request_sanitizes_403(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    def _request_impl(**kwargs):  # type: ignore[no-untyped-def]
+        return _FakeResponse(
+            status_code=403,
+            payload={"message": "Forbidden", "token": "supersecret"},
+        )
+
+    monkeypatch.setattr(
+        "src.handlers.api_handler.httpx.Client",
+        lambda **_kwargs: _FakeClient(_request_impl),
+    )
+
+    result = APIHandler(_settings()).execute_get_request(path="/vms", path_params={})
+
+    assert "error" in result
+    assert "supersecret" not in str(result)
+    assert "Forbidden" not in str(result)

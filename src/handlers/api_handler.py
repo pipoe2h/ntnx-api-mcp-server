@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 from urllib.parse import quote
@@ -10,6 +11,21 @@ import httpx
 
 from src.auth import build_auth_context
 from src.config import Settings
+
+LOGGER = logging.getLogger(__name__)
+
+
+class _LogEvent:
+    """Structured log event name constants — prevents typos and aids log grep/alerting."""
+
+    API_CALL = "api_call"
+    AUTH_FAILURE = "auth_failure"
+
+
+_SAFE_AUTH_ERROR = {
+    "error": "Authentication failed.",
+    "hint": "Check credentials and Prism Central user permissions.",
+}
 
 
 class APIHandler:
@@ -36,6 +52,9 @@ class APIHandler:
         normalized_headers.update(auth_headers)
         # Auto-inject a unique request ID; LLM-supplied value is respected if already present.
         normalized_headers.setdefault("NTNX-Request-Id", str(uuid.uuid4()))
+        # Tag every request as originating from the MCP server for PC-side observability.
+        normalized_headers["X-NTNX-REQUEST-SOURCE"] = "MCP"
+        request_id = normalized_headers["NTNX-Request-Id"]
         url = f"{self.settings.pc_base_url}{resolved_path}"
         with httpx.Client(
             verify=not self.settings.pc_insecure,
@@ -49,6 +68,14 @@ class APIHandler:
                 headers=normalized_headers,
                 json=body if body is not None else None,
             )
+        LOGGER.info(
+            "event=%s method=%s path=%s status=%s request_id=%s",
+            _LogEvent.API_CALL,
+            method.upper(),
+            resolved_path,
+            response.status_code,
+            request_id,
+        )
         result = self._as_result(response)
         if method.upper() in ("PUT", "PATCH") and response.status_code in range(400, 500):
             result["_put_hint"] = (
@@ -134,6 +161,17 @@ class APIHandler:
 
     @staticmethod
     def _as_result(response: httpx.Response) -> dict[str, Any]:
+        # Sanitize 401/403: log raw body at DEBUG so credentials/realm details
+        # are not forwarded to the LLM in plain text.
+        if response.status_code in (401, 403):
+            LOGGER.debug(
+                "event=%s status=%s body=%s",
+                _LogEvent.AUTH_FAILURE,
+                response.status_code,
+                response.text[:500],
+            )
+            return dict(_SAFE_AUTH_ERROR)
+
         payload: Any
         try:
             payload = response.json()

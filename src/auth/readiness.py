@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import httpx
@@ -9,6 +10,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config import Settings
 from src.config.constants import PC_NAMESPACE_VERSION_PROBE_TEMPLATE
+
+LOGGER = logging.getLogger(__name__)
 
 
 class StartupValidationError(RuntimeError):
@@ -51,12 +54,16 @@ def build_auth_headers(settings: Settings) -> dict[str, str]:
 
 
 def build_auth_context(settings: Settings) -> tuple[tuple[str, str] | None, dict[str, str]]:
-    """
-    Build outgoing auth context supporting both schemes.
-
-    API key and basic auth can coexist; if both are set, both are sent.
-    """
-    return (build_basic_auth(settings), build_auth_headers(settings))
+    """Build outgoing auth context. API key takes priority over basic auth when both are set."""
+    if settings.pc_api_key:
+        if settings.pc_username or settings.pc_password:
+            LOGGER.warning(
+                "event=dual_auth_configured "
+                "Both PC_API_KEY and PC_USERNAME/PC_PASSWORD are set. "
+                "PC_API_KEY takes priority; basic auth credentials are ignored."
+            )
+        return (None, build_auth_headers(settings))
+    return (build_basic_auth(settings), {})
 
 
 @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3), reraise=True)
@@ -82,9 +89,10 @@ def validate_startup_readiness(settings: Settings) -> StartupReadinessResult:
         raise StartupValidationError(
             "PC_HOST is not configured. Connected-mode startup readiness probe cannot run."
         )
-    if settings.pc_api_key is None and not (settings.pc_username and settings.pc_password):
+    if not settings.pc_api_key and not (settings.pc_username and settings.pc_password):
         raise StartupAuthError(
-            "No Prism Central auth configured. Provide PC_API_KEY or PC_USERNAME/PC_PASSWORD."
+            "No Prism Central auth configured. "
+            "Set either PC_API_KEY or PC_USERNAME + PC_PASSWORD (not both)."
         )
 
     try:

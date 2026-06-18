@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime
+import importlib.metadata
 import json
 import logging
 from pathlib import Path
@@ -138,8 +139,13 @@ def main() -> None:
         overrides=_build_overrides(args),
     )
     log_path = _configure_logging(settings.log_level, settings.log_format, settings.log_dir)
+    try:
+        _version = importlib.metadata.version("ntnx-api-mcp-server")
+    except importlib.metadata.PackageNotFoundError:
+        _version = "dev"
     LOGGER.info(
-        "event=cli_started command=%s log_level=%s log_format=%s log_file=%s",
+        "event=cli_started version=%s command=%s log_level=%s log_format=%s log_file=%s",
+        _version,
         args.command or "run",
         settings.log_level,
         settings.log_format,
@@ -153,12 +159,13 @@ def main() -> None:
 
         summary = download_yamls(settings=settings, refresh=False, force=False)
         LOGGER.info(
-            "event=init_completed artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s failed=%s duration_ms=%s",
+            "event=init_completed artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s not_available=%s failed=%s duration_ms=%s",
             summary.artifact_mode,
             summary.discovered,
             summary.processed,
             summary.success,
             summary.skipped,
+            summary.not_available,
             summary.failed,
             summary.duration_ms,
         )
@@ -172,8 +179,10 @@ def main() -> None:
                     "processed": summary.processed,
                     "success": summary.success,
                     "skipped": summary.skipped,
+                    "not_available": summary.not_available,
                     "failed": summary.failed,
                     "skipped_reasons": summary.skipped_reasons,
+                    "not_available_reasons": summary.not_available_reasons,
                     "failed_reasons": summary.failed_reasons,
                     "duration_ms": summary.duration_ms,
                 },
@@ -191,12 +200,13 @@ def main() -> None:
             force=bool(getattr(args, "force", False)),
         )
         LOGGER.info(
-            "event=refresh_completed artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
+            "event=refresh_completed artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s not_available=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
             summary.artifact_mode,
             summary.discovered,
             summary.processed,
             summary.success,
             summary.skipped,
+            summary.not_available,
             summary.failed,
             summary.deleted_artifacts,
             summary.restored_artifacts,
@@ -212,10 +222,12 @@ def main() -> None:
                     "processed": summary.processed,
                     "success": summary.success,
                     "skipped": summary.skipped,
+                    "not_available": summary.not_available,
                     "failed": summary.failed,
                     "deleted_artifacts": summary.deleted_artifacts,
                     "restored_artifacts": summary.restored_artifacts,
                     "skipped_reasons": summary.skipped_reasons,
+                    "not_available_reasons": summary.not_available_reasons,
                     "failed_reasons": summary.failed_reasons,
                     "duration_ms": summary.duration_ms,
                 },

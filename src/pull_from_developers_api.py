@@ -34,18 +34,25 @@ class DownloadSummary:
     processed: int = 0
     success: int = 0
     skipped: int = 0
+    # Namespace endpoint returned an HTTP error response (non-404): service not deployed on this PC.
+    # Expected during normal init when optional Nutanix services are absent.
+    not_available: int = 0
+    # Genuine failures: network errors, parse errors, unexpected exceptions.
     failed: int = 0
     deleted_artifacts: int = 0
     restored_artifacts: int = 0
     duration_ms: int = 0
     artifact_mode: str = "pc_compatible"
     skipped_reasons: dict[str, int] | None = None
+    not_available_reasons: dict[str, int] | None = None
     failed_reasons: dict[str, int] | None = None
     namespace_results: list[dict[str, Any]] | None = None
 
     def __post_init__(self) -> None:
         if self.skipped_reasons is None:
             self.skipped_reasons = {}
+        if self.not_available_reasons is None:
+            self.not_available_reasons = {}
         if self.failed_reasons is None:
             self.failed_reasons = {}
         if self.namespace_results is None:
@@ -54,6 +61,10 @@ class DownloadSummary:
     def add_skipped(self, reason: str) -> None:
         self.skipped += 1
         self.skipped_reasons[reason] = self.skipped_reasons.get(reason, 0) + 1
+
+    def add_not_available(self, reason: str) -> None:
+        self.not_available += 1
+        self.not_available_reasons[reason] = self.not_available_reasons.get(reason, 0) + 1
 
     def add_failed(self, reason: str) -> None:
         self.failed += 1
@@ -361,11 +372,14 @@ def download_yamls(
                     duration_ms=int((time.perf_counter() - namespace_started) * 1000),
                 )
             else:
-                summary.add_failed("http_error")
+                # Non-404 HTTP response means the namespace endpoint exists but the service
+                # is not deployed or accessible on this PC — expected for optional namespaces.
+                http_reason = f"http_{exc.response.status_code}"
+                summary.add_not_available(http_reason)
                 summary.add_namespace_result(
                     namespace=namespace,
-                    status="failed",
-                    reason="http_error",
+                    status="not_available",
+                    reason=http_reason,
                     duration_ms=int((time.perf_counter() - namespace_started) * 1000),
                 )
         except Exception as exc:
@@ -395,13 +409,14 @@ def download_yamls(
 
     summary.duration_ms = int((time.perf_counter() - started) * 1000)
     LOGGER.info(
-        "event=artifact_download_completed mode=%s artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
+        "event=artifact_download_completed mode=%s artifact_mode=%s discovered=%s processed=%s success=%s skipped=%s not_available=%s failed=%s deleted_artifacts=%s restored_artifacts=%s duration_ms=%s",
         "refresh" if refresh else "init",
         artifact_mode,
         summary.discovered,
         summary.processed,
         summary.success,
         summary.skipped,
+        summary.not_available,
         summary.failed,
         summary.deleted_artifacts,
         summary.restored_artifacts,
