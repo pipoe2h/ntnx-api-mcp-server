@@ -37,7 +37,7 @@ All notable changes are documented here. Format follows [Keep a Changelog](https
 - Supported config file formats: `.json`, `.yaml`/`.yml`, `.toml`
 - Precedence order: CLI flags > `--config-file` > environment variables / `.env` > defaults
 - `NAMESPACE_OVERRIDE_LIST` to restrict which namespaces are loaded (useful for air-gapped or restricted environments)
-- `READ_ONLY_MODE` — server-side enforcement that rejects all non-GET operations before they reach Prism Central (default: `false`)
+- `READ_ONLY_MODE` — server-side enforcement that rejects all non-GET operations before they reach Prism Central (default: `true`; set to `false` to opt in to write operations)
 
 **Observability**
 - `X-NTNX-REQUEST-SOURCE: MCP` header injected on every outbound API call for server-side auditability at the Prism Central layer

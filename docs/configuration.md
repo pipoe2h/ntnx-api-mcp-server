@@ -84,6 +84,13 @@ NAMESPACE_SOURCE_URL=https://developers.nutanix.com/api/v1/namespaces
 # Example: NAMESPACE_OVERRIDE_LIST=aiops,vmm,prism
 # NAMESPACE_OVERRIDE_LIST=
 
+# ── Runtime controls ──────────────────────────────────────────────────────────
+
+# Block all non-GET (write) operations server-side before they reach Prism Central.
+# true  = read-only mode enforced (default; recommended)
+# false = write operations allowed — set explicitly to opt in to create/update/delete
+READ_ONLY_MODE=true
+
 ```
 
 The same keys can be placed in a `.json`, `.yaml`/`.yml`, or `.toml` file and passed via
@@ -102,6 +109,8 @@ log_level              = "INFO"
 log_format             = "text"
 log_dir                = "/home/user/.nutanix-mcp/logs"
 namespace_source_url   = "https://developers.nutanix.com/api/v1/namespaces"
+# namespace_override_list = "aiops,vmm,prism"  # uncomment to restrict namespaces
+read_only_mode         = true
 ```
 
 ---
@@ -139,7 +148,7 @@ directory (loaded automatically via `pydantic-settings`). Variable names are cas
 | `ARTIFACTS_DIR` | Directory for downloaded OpenAPI YAML files; created on startup. **Use an absolute path** in AI client config files. | No | `<project_root>/artifacts` | `/opt/nutanix-mcp/artifacts` |
 | `NAMESPACE_SOURCE_URL` | Namespace-list discovery endpoint | No | `https://developers.nutanix.com/api/v1/namespaces` | *(use default)* |
 | `NAMESPACE_OVERRIDE_LIST` | Comma-separated list of namespace names to load. When set, only these namespaces are fetched and registered as tools — all others are skipped. Useful for air-gapped environments or when only a subset of namespaces is needed. | No | *(none — all available namespaces loaded)* | `aiops,vmm,prism` |
-| `READ_ONLY_MODE` | When `"true"`, all non-GET operations are rejected server-side before reaching Prism Central | No | `"false"` | `"true"` |
+| `READ_ONLY_MODE` | When `"true"`, all non-GET operations are rejected server-side before reaching Prism Central | No | `"true"` | `"false"` |
 
 ### Logging
 
@@ -172,7 +181,7 @@ file key and an environment variable are set, see [Precedence rules](#precedence
 | `log_dir` | path string | `<project_root>/logs` | Per-restart log file directory; created if absent |
 | `namespace_source_url` | URL string | `https://developers.nutanix.com/api/v1/namespaces` | Namespace-list discovery endpoint |
 | `namespace_override_list` | string | *(none)* | Comma-separated namespace names to load (e.g. `aiops,vmm,prism`). When set, only listed namespaces are fetched and registered. All others are skipped. |
-| `read_only_mode` | boolean | `false` | `true` = block all non-GET operations server-side; `false` = allow write operations |
+| `read_only_mode` | boolean | `true` | `true` = block all non-GET operations server-side (default; recommended); `false` = allow write operations (opt-in) |
 
 ### Notes on specific keys
 

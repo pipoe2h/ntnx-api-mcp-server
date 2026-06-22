@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # Runtime controls
     read_only_mode: bool = Field(
-        default=False,
+        default=True,
         description="When true, reject all non-GET operations before they reach Prism Central",
     )
 

@@ -1005,7 +1005,7 @@ Running `nutanix-mcp init` or `nutanix-mcp refresh` writes credentials in plaint
 <details>
 <summary><strong>Which operations are read-only vs destructive?</strong></summary>
 
-By default all HTTP methods are executable. Set `READ_ONLY_MODE=true` in your `.env` or client config `env` block to have the server reject all non-GET operations before they reach Prism Central.
+`READ_ONLY_MODE` defaults to `true` — all non-GET operations are blocked server-side by default. To allow write operations, set `READ_ONLY_MODE=false` in your `.env` or client config `env` block.
 
 - **Read-only operations:** All HTTP GET operations (107 in the current default artifact set).
 - **Destructive operations:** HTTP POST (create), PUT (replace), PATCH (update), DELETE (destroy).

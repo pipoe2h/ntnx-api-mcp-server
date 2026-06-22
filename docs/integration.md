@@ -224,7 +224,7 @@ All namespace executor tools (`vmm_execute`, `networking_execute`, etc.) carry s
 
 MCP clients that surface these hints (Cursor, Claude Desktop, custom clients) will apply their native confirmation UX for write operations without requiring a custom system prompt. Consult your client's documentation for how it handles `destructiveHint`.
 
-For server-side enforcement regardless of client behavior, set `READ_ONLY_MODE=true` in your environment config — the server will reject all non-GET operations before they reach Prism Central.
+`READ_ONLY_MODE` defaults to `true` — the server rejects all non-GET operations server-side regardless of client behavior. To allow write operations, set `READ_ONLY_MODE=false` explicitly in your environment config.
 
 ---
 

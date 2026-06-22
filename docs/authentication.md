@@ -380,7 +380,7 @@ could attempt to instruct the AI model to take unintended actions via tool chain
 
 **Implemented:**
 
-- Read-only mode: set `READ_ONLY_MODE=true` to block all non-GET operations server-side before they reach Prism Central
+- Read-only mode: `READ_ONLY_MODE=true` by default — all non-GET operations are blocked server-side; set `READ_ONLY_MODE=false` to opt in to write operations
 
 ### No rate limiting or throttling
 

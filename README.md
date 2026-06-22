@@ -96,7 +96,7 @@ Key variables:
 - `PC_USERNAME` + `PC_PASSWORD` — basic auth credentials (use one auth method, not both)
 - `PC_API_KEY` — API key sent as `X-ntnx-api-key` (alternative to username/password; takes priority if both are set)
 - `PC_INSECURE=false` — enforces TLS verification by default; set to `true` only for dev/lab with self-signed certificates
-- `READ_ONLY_MODE=true` — blocks all non-GET operations server-side (optional; default `false`)
+- `READ_ONLY_MODE=true` — blocks all non-GET operations server-side (default; set to `false` to opt in to write operations)
 - `ARTIFACTS_DIR` — **must be an absolute path** when set in AI client config files
 
 For all configuration options, defaults, and validation behavior: [configuration reference](docs/configuration.md).

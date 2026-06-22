@@ -78,6 +78,7 @@ PC_INSECURE=false
 | `PC_PASSWORD` | Required when `PC_USERNAME` set | — | |
 | `PC_API_KEY` | One auth method only | — | Sent as `X-ntnx-api-key` header |
 | `PC_INSECURE` | No | `false` | Set `true` only for dev/lab with self-signed certificates |
+| `READ_ONLY_MODE` | No | `true` | Blocks all non-GET operations server-side by default; set `false` to opt in to write operations |
 
 ---
 
