@@ -4,7 +4,7 @@
 
 ## Reporting bugs and feature requests
 
-Use [GitHub Issues](https://github.com/nutanix-core/ntnx-api-mcp-server/issues) to report bugs, request features, or flag documentation problems. Issue templates are available for each category — select the appropriate one when opening an issue.
+Use [GitHub Issues](https://github.com/nutanix/ntnx-api-mcp-server/issues) to report bugs, request features, or flag documentation problems. Issue templates are available for each category — select the appropriate one when opening an issue.
 
 ---
 

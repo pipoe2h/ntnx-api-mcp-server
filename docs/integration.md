@@ -216,7 +216,7 @@ Claude Desktop does not expose a built-in HITL toggle. Use a persistent system p
 
 ### MCP tool annotations
 
-All namespace executor tools (`vmm_execute`, `networking_execute`, etc.) carry standard [MCP tool annotations](https://spec.modelcontextprotocol.io/specification/2025-03-26/server/tools/#tool-annotations):
+All namespace executor tools (`vmm_execute`, `networking_execute`, etc.) carry standard [MCP tool annotations](https://modelcontextprotocol.io/specification/2025-11-25/server/tools):
 
 - `readOnlyHint: false` — these tools can modify state
 - `destructiveHint: true` — mutations may be irreversible

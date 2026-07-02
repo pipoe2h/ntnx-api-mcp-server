@@ -45,7 +45,7 @@
 ### 2.2 Clone and install
 
 ```bash
-git clone https://github.com/nutanix-core/ntnx-api-mcp-server
+git clone https://github.com/nutanix/ntnx-api-mcp-server
 cd ntnx-api-mcp-server
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
@@ -261,7 +261,7 @@ sudo dnf install -y python3.11 git
 
 ```bash
 # Clone to a stable location
-sudo git clone https://github.com/nutanix-core/ntnx-api-mcp-server /opt/nutanix-mcp
+sudo git clone https://github.com/nutanix/ntnx-api-mcp-server /opt/nutanix-mcp
 cd /opt/nutanix-mcp
 
 # Create a virtual environment
@@ -304,7 +304,7 @@ Save the following as `/etc/systemd/system/nutanix-mcp.service`:
 ```ini
 [Unit]
 Description=Nutanix V4 API MCP Server
-Documentation=https://github.com/nutanix-core/ntnx-api-mcp-server
+Documentation=https://github.com/nutanix/ntnx-api-mcp-server
 After=network-online.target
 Wants=network-online.target
 

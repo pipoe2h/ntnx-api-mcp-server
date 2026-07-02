@@ -25,7 +25,7 @@ Use this path if you want to run the server as a background process and connect 
 ### 1.1 Install
 
 ```bash
-git clone https://github.com/nutanix-core/ntnx-api-mcp-server.git
+git clone https://github.com/nutanix/ntnx-api-mcp-server.git
 cd ntnx-api-mcp-server
 python3 -m venv .venv
 source .venv/bin/activate     # Windows: .venv\Scripts\activate
@@ -161,7 +161,7 @@ Use this path to connect Cursor or Claude Desktop. The AI client spawns the serv
 ### 2.1 Install
 
 ```bash
-git clone https://github.com/nutanix-core/ntnx-api-mcp-server.git
+git clone https://github.com/nutanix/ntnx-api-mcp-server.git
 cd ntnx-api-mcp-server
 python3 -m venv .venv
 source .venv/bin/activate     # Windows: .venv\Scripts\activate

@@ -2,7 +2,7 @@
 
 > Expose Nutanix V4 APIs as tools callable by AI assistants — Claude, Cursor, and any MCP-compatible client.
 
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](CHANGELOG.md)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 
 ---
@@ -72,7 +72,7 @@ The server exposes one `<namespace>_execute` tool per namespace. Namespaces are 
 ## Quickstart
 
 ```bash
-git clone https://github.com/nutanix-core/ntnx-api-mcp-server
+git clone https://github.com/nutanix/ntnx-api-mcp-server
 cd ntnx-api-mcp-server
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
