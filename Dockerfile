@@ -7,8 +7,8 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     MCP_PORT=8000 \
-    ARTIFACTS_DIR=/app/artifacts \
-    LOG_DIR=/app/logs
+    ARTIFACTS_DIR=/tmp/artifacts \
+    LOG_DIR=/tmp/logs
 
 WORKDIR /app
 

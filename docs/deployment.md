@@ -140,13 +140,15 @@ makes the MCP endpoint available at `http://localhost:8080/mcp`:
 ```bash
 docker run --rm -p 8080:8000 \
   --env-file .env \
-  -v /host/path/artifacts:/app/artifacts \
+  -v /host/path/artifacts:/tmp/artifacts \
   nutanix-mcp:latest
 ```
 
 The health check endpoint is `http://localhost:8080/health`. Credentials should be
 passed with `--env-file` or individual `-e` options and never baked into the image.
-Mount `/app/artifacts` if downloaded specifications must persist across containers.
+The image defaults `ARTIFACTS_DIR` to `/tmp/artifacts` and `LOG_DIR` to `/tmp/logs`
+so both locations remain writable when the container root filesystem is read-only.
+Mount `/tmp/artifacts` if downloaded specifications must persist across containers.
 
 To make the process listen on a different container port, set `MCP_PORT` and publish
 the same port:
