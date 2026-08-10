@@ -2,7 +2,7 @@
 
 > Expose Nutanix V4 APIs as tools callable by AI assistants — Claude, Cursor, and any MCP-compatible client.
 
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8-green.svg)](CHANGELOG.md)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 
 ---

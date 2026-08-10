@@ -71,7 +71,7 @@ Every common failure mode, with exact error strings, root causes, and step-by-st
    ```bash
    curl -k --max-time 30 -X OPTIONS https://10.1.1.10:9440/api/prism/v4.0 -u admin:password
    ```
-3. The 30-second timeout is hardcoded in version `0.1.0` and cannot be changed via environment variable. Ensure Prism Central is reachable before starting the server.
+3. The 30-second timeout is hardcoded in version `0.8` and cannot be changed via environment variable. Ensure Prism Central is reachable before starting the server.
 4. When using `serve-stdio` (not `run`), the startup probe is skipped — the timeout only surfaces at the first tool call. The error detail will be `"execution_error"` containing `str(httpx.ConnectTimeout(...))`.
 
 ---
@@ -573,7 +573,7 @@ Missing required path parameters: extId
    ```
    Then call the appropriate task-get operation with the task `extId`.
 3. Poll until `status` is `SUCCEEDED` or `FAILED`.
-4. Version `0.1.0` has no built-in polling — this is a manual step.
+4. Version `0.8` has no built-in polling — this is a manual step.
 
 ---
 
@@ -879,7 +879,7 @@ export ARTIFACTS_DIR=/home/user/nutanix-artifacts
 
 **Symptom:** Every `_execute` tool call takes several seconds.
 
-**Cause:** Each tool call opens a new HTTP connection to Prism Central — there is no connection pool in version `0.1.0`. Round-trip latency to your cluster directly impacts response time.
+**Cause:** Each tool call opens a new HTTP connection to Prism Central — there is no connection pool in version `0.8`. Round-trip latency to your cluster directly impacts response time.
 
 **Fix:**
 1. Ensure the machine running the server has low network latency to Prism Central (same datacenter or VPN with low latency).
@@ -898,7 +898,7 @@ export ARTIFACTS_DIR=/home/user/nutanix-artifacts
 
 **Symptom:** Rapid successive tool calls start returning HTTP 429 or Prism Central becomes unresponsive.
 
-**Cause:** Prism Central imposes its own rate limits on API requests. The MCP server does not implement client-side rate limiting in version `0.1.0`.
+**Cause:** Prism Central imposes its own rate limits on API requests. The MCP server does not implement client-side rate limiting in version `0.8`.
 
 **Fix:**
 1. Reduce call frequency — add delays between agentic workflow steps.
@@ -969,7 +969,7 @@ Run `nutanix-mcp init` with `PC_HOST` pointing to your CE cluster to discover wh
 <details>
 <summary><strong>Can I connect to multiple clusters simultaneously?</strong></summary>
 
-No. Version `0.1.0` supports a single `PC_HOST` per server process. Each server instance connects to exactly 1 Prism Central.
+No. Version `0.8` supports a single `PC_HOST` per server process. Each server instance connects to exactly 1 Prism Central.
 
 To work with multiple clusters, run a separate server process for each cluster with different `PC_HOST` values, and register each as a separate MCP server entry in your client config:
 ```json

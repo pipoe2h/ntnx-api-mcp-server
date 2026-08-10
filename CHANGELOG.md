@@ -4,7 +4,7 @@ All notable changes are documented here. Format follows [Keep a Changelog](https
 
 ---
 
-## [0.1.0] — Initial release
+## [0.8] — Initial release
 
 ### Added
 
@@ -55,7 +55,7 @@ All notable changes are documented here. Format follows [Keep a Changelog](https
 - Text and JSON log formats (`LOG_FORMAT`)
 - Credentials masked in all log output
 
-### Known limitations in 0.1.0
+### Known limitations in 0.8
 
 - **Single cluster per process** — one `PC_HOST` per server instance; run separate instances for multiple clusters
 - **No connection pooling** — each tool call opens a new HTTP connection to Prism Central
