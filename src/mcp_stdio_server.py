@@ -132,7 +132,8 @@ def _build_instructions(namespaces: list[str]) -> str:
     )
 
 
-async def _serve_stdio(settings: Settings) -> None:
+def build_mcp_server(settings: Settings) -> tuple[Server[Any], str]:
+    """Build the transport-independent MCP server and register its tools."""
     try:
         _version = importlib.metadata.version("ntnx-api-mcp-server")
     except importlib.metadata.PackageNotFoundError:
@@ -168,13 +169,19 @@ async def _serve_stdio(settings: Settings) -> None:
             structuredContent=result.as_dict(),
         )
 
+    return server, _version
+
+
+async def _serve_stdio(settings: Settings) -> None:
+    server, version = build_mcp_server(settings)
+
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
             write_stream,
             InitializationOptions(
                 server_name="nutanix-v4-mcp-server",
-                server_version=_version,
+                server_version=version,
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
                     experimental_capabilities={},

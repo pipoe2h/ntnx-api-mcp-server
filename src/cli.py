@@ -78,6 +78,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "serve-stdio",
         help="Run MCP stdio server for Cursor/Claude/Inspector clients",
     )
+    http_parser = subparsers.add_parser(
+        "serve-http",
+        help="Run MCP Streamable HTTP server",
+    )
+    http_parser.add_argument("--host", default="0.0.0.0")
+    http_parser.add_argument("--port", type=int, default=8000)
     return parser
 
 
@@ -238,6 +244,12 @@ def main() -> None:
 
     if command == "serve-stdio":
         serve_stdio(settings)
+        return
+
+    if command == "serve-http":
+        from .mcp_http_server import serve_http
+
+        serve_http(settings, host=args.host, port=args.port)
         return
 
     if bool(getattr(args, "validate_only", False)):

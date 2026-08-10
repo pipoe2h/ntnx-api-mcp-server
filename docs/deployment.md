@@ -28,7 +28,7 @@
 | Docker | Medium | Isolated, reproducible environments; CI pipelines; teams that standardise on containers | [§3 Docker](#3-docker) |
 | Bare metal / VM | Medium | Persistent service on a server or VM close to Prism Central; long-running deployments | [§4 Bare metal / VM](#4-bare-metal--vm) |
 
-> The server communicates over **stdio only**. It does not open a TCP port. Every deployment method boils down to the same thing: an MCP client (Cursor, Claude Desktop, etc.) launches the `nutanix-mcp serve-stdio` process and pipes messages through its stdin/stdout.
+> The server supports **stdio** for locally launched MCP clients and **Streamable HTTP** for network/container deployments. The HTTP endpoint is `/mcp`, with a health endpoint at `/health`.
 
 ---
 
@@ -122,113 +122,50 @@ The process blocks, reading MCP messages from stdin. Connect your MCP client to 
 
 ## 3. Docker
 
-> **No official Docker image is published yet.** The steps below describe how to build and run a local image from the repository source.
+The committed `Dockerfile` starts the Streamable HTTP transport on port `8000` by default.
+If the mounted artifacts directory is empty, the entrypoint downloads the applicable
+API specifications before starting the server.
 
-### 3.1 Requirements
-
-- Docker Engine 20.10 or later
-- Repository cloned locally
-
-### 3.2 Create a Dockerfile
-
-No `Dockerfile` is committed to the repository. Create one in the project root:
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Copy project files
-COPY pyproject.toml .
-COPY src/ src/
-
-# Install the package
-RUN pip install --no-cache-dir -e .
-
-# Artifacts and logs directories
-RUN mkdir -p /app/artifacts /app/logs
-
-# Run as non-root
-RUN useradd --system --no-create-home --shell /usr/sbin/nologin nutanix-mcp
-RUN chown -R nutanix-mcp:nutanix-mcp /app
-USER nutanix-mcp
-
-ENTRYPOINT ["nutanix-mcp"]
-CMD ["serve-stdio"]
-```
-
-### 3.3 Build the image
+### 3.1 Build the image
 
 ```bash
 docker build -t nutanix-mcp:latest .
 ```
 
-### 3.4 Run the container
+### 3.2 Run on a host port
 
-Because the server uses stdio transport, the container must be launched by your MCP client as a subprocess, not as a standalone daemon. Pass credentials via environment variables; never bake them into the image.
-
-Example run command for manual testing (stdin/stdout attached):
-
-```bash
-docker run --rm -i \
-  -e PC_HOST=your-pc.example.com \
-  -e PC_PORT=9440 \
-  -e PC_USERNAME=your-username \
-  -e PC_PASSWORD=your-password \
-  -e PC_INSECURE=false \
-  -e ARTIFACTS_DIR=/app/artifacts \
-  -e LOG_DIR=/app/logs \
-  -v /host/path/artifacts:/app/artifacts \
-  nutanix-mcp:latest serve-stdio
-```
-
-> `-i` keeps stdin open, which is required for stdio transport.
-> Mount a host volume for `artifacts/` so downloaded specs persist across container restarts.
-
-### 3.5 MCP client configuration with Docker
-
-Point your MCP client at `docker run` instead of `nutanix-mcp` directly. Example for Cursor (`~/.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "nutanix-v4-mcp": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-e", "PC_HOST=your-pc.example.com",
-        "-e", "PC_PORT=9440",
-        "-e", "PC_USERNAME=your-username",
-        "-e", "PC_PASSWORD=your-password",
-        "-e", "PC_INSECURE=false",
-        "-e", "ARTIFACTS_DIR=/app/artifacts",
-        "-v", "/host/path/artifacts:/app/artifacts",
-        "nutanix-mcp:latest",
-        "serve-stdio"
-      ]
-    }
-  }
-}
-```
-
-### 3.6 Verify the container is working
-
-Run the validate-only check inside the container before wiring it to a client:
+Publish any desired host port to the container's listening port. For example, this
+makes the MCP endpoint available at `http://localhost:8080/mcp`:
 
 ```bash
-docker run --rm \
-  -e PC_HOST=your-pc.example.com \
-  -e PC_USERNAME=your-username \
-  -e PC_PASSWORD=your-password \
-  -e PC_INSECURE=false \
-  -e ARTIFACTS_DIR=/app/artifacts \
+docker run --rm -p 8080:8000 \
+  --env-file .env \
   -v /host/path/artifacts:/app/artifacts \
-  nutanix-mcp:latest run --validate-only
+  nutanix-mcp:latest
 ```
 
-A `"startup_ready": true` field in the JSON output confirms everything is working.
+The health check endpoint is `http://localhost:8080/health`. Credentials should be
+passed with `--env-file` or individual `-e` options and never baked into the image.
+Mount `/app/artifacts` if downloaded specifications must persist across containers.
 
----
+To make the process listen on a different container port, set `MCP_PORT` and publish
+the same port:
+
+```bash
+docker run --rm -p 9000:9000 -e MCP_PORT=9000 --env-file .env nutanix-mcp:latest
+```
+
+You can override the image command to retain stdio transport:
+
+```bash
+docker run --rm -i --env-file .env nutanix-mcp:latest serve-stdio
+```
+
+### 3.3 Run HTTP without Docker
+
+```bash
+nutanix-mcp serve-http --host 0.0.0.0 --port 8000
+```
 
 ## 4. Bare metal / VM
 
