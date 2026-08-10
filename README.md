@@ -254,7 +254,6 @@ Nutanix Developer Team
 - [Security and vulnerability reporting](SECURITY.md)
 - [Changelog](CHANGELOG.md)
 - [Nutanix V4 API Developer Portal](https://developers.nutanix.com)
-- [Nutanix Developer Hub](https://developer.nutanix.com)
 - [Model Context Protocol Specification](https://modelcontextprotocol.io)
 - [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
 
