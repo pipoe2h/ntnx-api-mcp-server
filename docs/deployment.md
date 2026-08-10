@@ -26,7 +26,7 @@
 |---|---|---|---|
 | Local development | Low | Ad-hoc testing, personal use, and exploratory use on a developer workstation | [§2 Local development](#2-local-development) |
 | Docker | Medium | Isolated, reproducible environments; CI pipelines; teams that standardise on containers | [§3 Docker](#3-docker) |
-| Bare metal / VM | Medium | Persistent service on a server or VM close to Prism Central; production-like deployments | [§4 Bare metal / VM](#4-bare-metal--vm) |
+| Bare metal / VM | Medium | Persistent service on a server or VM close to Prism Central; long-running deployments | [§4 Bare metal / VM](#4-bare-metal--vm) |
 
 > The server communicates over **stdio only**. It does not open a TCP port. Every deployment method boils down to the same thing: an MCP client (Cursor, Claude Desktop, etc.) launches the `nutanix-mcp serve-stdio` process and pipes messages through its stdin/stdout.
 
@@ -548,7 +548,7 @@ A successful response has `"artifact_mode"` set and no error fields. A failed re
 
 ### 8.4 External monitoring recommendations
 
-For production environments:
+For long-running deployments:
 
 - Monitor the systemd service state with your infrastructure monitoring tool (Nagios, Prometheus `node_exporter` service state check, Datadog, etc.)
 - Alert on the process exiting unexpectedly (`RestartSec=5s` in the unit file will restart it, but repeated restarts indicate a configuration problem)

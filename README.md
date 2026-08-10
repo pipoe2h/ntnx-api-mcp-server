@@ -260,8 +260,9 @@ Nutanix Developer Team
 
 ---
 
-## Disclaimer
+## Technical Preview Disclaimer
 
 This repository is an open-source project. Please note the following before using it:
 
-* **Expect Changes:** As a preview, breaking changes may occur. We encourage you to experiment, test, and share your feedback!
+* **Non-Production Only:** This project is in a tech preview state. It is **not** designed, tested, or supported for production workloads.
+* **Expect Changes:** As a preview, breaking changes may occur. We encourage you to experiment, test, and share your feedback in non-production environments!

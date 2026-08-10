@@ -3,7 +3,7 @@
 > **Audience:** This document has two layers.
 > - **Sections 1–5** are written for practitioners: what to configure and how.
 > - **Sections 6–7** are written for security architects: how it works and what the risks are.
-> - **Section 8** is a standalone production checklist designed to be copied into a Confluence deployment runbook.
+> - **Section 8** is a standalone security checklist designed to be copied into a Confluence deployment runbook.
 >
 > **Config syntax is summarised here; the authoritative reference for every key and its accepted values is [configuration reference](./configuration.md).**
 
@@ -19,7 +19,7 @@
 6. [Attack surface](#6-attack-surface)
    - [Prompt injection risk](#prompt-injection-risk)
 7. [Audit logging](#7-audit-logging)
-8. [Production security checklist](#8-production-security-checklist)
+8. [Security hardening checklist](#8-security-hardening-checklist)
 
 ---
 
@@ -475,7 +475,7 @@ targeting the `LOG_DIR` directory.
 
 ---
 
-## 8. Production security checklist
+## 8. Security hardening checklist
 
 > **Designed to be copied into a Confluence deployment runbook independently.**
 > Each item links to the relevant section of this document.
