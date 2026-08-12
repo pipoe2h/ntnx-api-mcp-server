@@ -11,12 +11,17 @@ import subprocess
 ENTRYPOINT = Path(__file__).parents[2] / "docker-entrypoint.sh"
 
 
-def _run_entrypoint(tmp_path: Path, *arguments: str) -> list[str]:
+def _run_entrypoint_calls(
+    tmp_path: Path,
+    *arguments: str,
+    artifacts_available: bool = True,
+) -> list[list[str]]:
     bin_dir = tmp_path / "bin"
     artifacts_dir = tmp_path / "artifacts"
     bin_dir.mkdir()
     artifacts_dir.mkdir()
-    (artifacts_dir / "test-all-documentation.yaml").touch()
+    if artifacts_available:
+        (artifacts_dir / "test-all-documentation.yaml").touch()
 
     executable = bin_dir / "nutanix-mcp"
     executable.write_text(
@@ -39,7 +44,11 @@ def _run_entrypoint(tmp_path: Path, *arguments: str) -> list[str]:
         capture_output=True,
         text=True,
     )
-    return json.loads(result.stdout)
+    return [json.loads(line) for line in result.stdout.splitlines()]
+
+
+def _run_entrypoint(tmp_path: Path, *arguments: str) -> list[str]:
+    return _run_entrypoint_calls(tmp_path, *arguments)[-1]
 
 
 def test_option_only_arguments_restore_default_http_command(tmp_path: Path) -> None:
@@ -54,6 +63,24 @@ def test_option_only_arguments_restore_default_http_command(tmp_path: Path) -> N
         "--port",
         "8765",
     ]
+
+
+def test_option_only_arguments_preserve_pc_insecure(tmp_path: Path) -> None:
+    arguments = _run_entrypoint(tmp_path, "--pc-insecure", "true")
+
+    assert arguments[1:3] == ["--pc-insecure", "true"]
+
+
+def test_automatic_initialization_receives_pc_insecure(tmp_path: Path) -> None:
+    calls = _run_entrypoint_calls(
+        tmp_path,
+        "--pc-insecure",
+        "true",
+        artifacts_available=False,
+    )
+
+    assert calls[0] == ["init", "--pc-insecure", "true"]
+    assert calls[1][1:3] == ["--pc-insecure", "true"]
 
 
 def test_combined_option_and_value_are_normalized(tmp_path: Path) -> None:

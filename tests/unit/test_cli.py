@@ -99,6 +99,25 @@ def test_pc_arguments_accept_hyphens_before_command() -> None:
     assert Settings(**overrides).pc_port == 9440
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("true", True), ("false", False)],
+)
+def test_pc_insecure_after_command_overrides_with_boolean(
+    value: str,
+    expected: bool,
+) -> None:
+    args = _build_parser().parse_args(["serve-http", "--pc-insecure", value])
+
+    assert _build_overrides(args)["pc_insecure"] is expected
+
+
+def test_pc_insecure_is_accepted_before_command() -> None:
+    args = _build_parser().parse_args(["--pc-insecure", "true", "serve-http"])
+
+    assert _build_overrides(args)["pc_insecure"] is True
+
+
 def test_underscored_pc_argument_is_not_accepted() -> None:
     with pytest.raises(SystemExit) as exc_info:
         _build_parser().parse_args(["serve-http", "--pc_host", "pc.example.test"])

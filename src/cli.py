@@ -70,6 +70,11 @@ def _add_pc_connection_arguments(
     parser.add_argument("--pc-port", type=int, default=default)
     parser.add_argument("--pc-username", default=default)
     parser.add_argument("--pc-password", default=default)
+    parser.add_argument(
+        "--pc-insecure",
+        choices=["true", "false"],
+        default=default,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -83,7 +88,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     _add_pc_connection_arguments(parser)
     parser.add_argument("--pc-api-key")
-    parser.add_argument("--pc-insecure", choices=["true", "false"])
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
     parser.add_argument("--log-format", choices=["text", "json"])
     parser.add_argument("--log-dir")
