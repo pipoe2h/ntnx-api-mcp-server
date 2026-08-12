@@ -244,6 +244,12 @@ Validation runs in this sequence:
    issued against `https://{pc_host}:{pc_port}/api/prism/unversioned/info` (OPTIONS request,
    up to 3 attempts with exponential backoff: 1 s, then up to 8 s between retries).
 
+After a successful `init` or `refresh`, the CLI attempts to save the resolved settings to `.env`
+as a convenience for later local runs. If the working directory is read-only or the file cannot
+otherwise be written, the CLI logs `event=config_dotenv_save_skipped` and preserves the successful
+command result. Environment variables and `--config-file` remain the recommended configuration
+sources for read-only container deployments.
+
 ### Missing required values
 
 | Condition | Exact error message | Exit code |
