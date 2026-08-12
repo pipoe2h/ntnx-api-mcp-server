@@ -141,8 +141,12 @@ makes the MCP endpoint available at `http://localhost:8080/mcp`:
 docker run --rm -p 8080:8000 \
   --env-file .env \
   -v /host/path/artifacts:/tmp/artifacts \
-  nutanix-mcp:latest
+  nutanix-mcp:latest --pc-insecure true
 ```
+
+Setting `--pc-insecure true` disables TLS certificate verification and should only be used when
+the Prism Central certificate cannot yet be trusted. Omit the option (or pass `false`) whenever
+certificate verification is available.
 
 The health check endpoint is `http://localhost:8080/health`. Credentials should be
 passed with `--env-file` or individual `-e` options and never baked into the image.

@@ -62,6 +62,7 @@ value_options = {
     "--pc-port",
     "--pc-username",
     "--pc-password",
+    "--pc-insecure",
 }
 forwarded = []
 arguments = iter(sys.argv[1:])
