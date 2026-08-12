@@ -179,6 +179,11 @@ nutanix-mcp serve-http \
 Command-line passwords can be visible in process listings and Kubernetes pod specifications. Use a
 Secret-backed environment variable for `PC_PASSWORD` when possible.
 
+When a Kubernetes integration replaces the image command with option-only `args`, the entrypoint
+retains the default `serve-http` command. It accepts both the preferred separate argument form
+(`--pc-host`, `pc.example.com`) and integrations that emit a combined argument
+(`--pc-host pc.example.com`).
+
 ### 3.3 Run HTTP without Docker
 
 ```bash
