@@ -61,6 +61,7 @@ def test_init_works_without_pc_host_in_latest_release_mode(
     default_dir = tmp_path / "defaults"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     default_dir.mkdir(parents=True, exist_ok=True)
+    _write_basic_yaml(artifacts_dir / "vmm-v4.2-all-documentation.yaml")
 
     monkeypatch.setattr(cli_module, "_build_parser", lambda: _fake_args_for_init())
     monkeypatch.setattr(
@@ -100,6 +101,59 @@ def test_init_works_without_pc_host_in_latest_release_mode(
     assert output["mode"] == "init"
     assert output["artifact_mode"] == "latest_release"
     assert output["success"] == 1
+
+
+def test_init_exits_nonzero_when_no_artifacts_were_downloaded(
+    monkeypatch, capsys, tmp_path
+) -> None:  # type: ignore[no-untyped-def]
+    import pytest
+
+    artifacts_dir = tmp_path / "artifacts"
+    default_dir = tmp_path / "defaults"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    default_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(cli_module, "_build_parser", lambda: _fake_args_for_init())
+    monkeypatch.setattr(
+        cli_module,
+        "load_settings",
+        lambda config_file, overrides: _fake_settings(
+            pc_host=None,
+            artifacts_dir=artifacts_dir,
+            default_artifacts_dir=default_dir,
+        ),
+    )
+
+    @dataclass
+    class _FailedSummary:
+        discovered: int = 20
+        processed: int = 20
+        success: int = 0
+        skipped: int = 0
+        not_available: int = 0
+        failed: int = 20
+        duration_ms: int = 10
+        artifact_mode: str = "latest_release"
+        skipped_reasons: dict[str, int] | None = None
+        not_available_reasons: dict[str, int] | None = None
+        failed_reasons: dict[str, int] | None = None
+
+    monkeypatch.setattr(
+        pull_module,
+        "download_yamls",
+        lambda settings, refresh, force: _FailedSummary(
+            skipped_reasons={},
+            not_available_reasons={},
+            failed_reasons={"unexpected_error:ConnectError": 20},
+        ),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli_module.main()
+
+    assert exc_info.value.code == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output["failed"] == 20
 
 
 class _FakeArgs:

@@ -132,7 +132,7 @@ def test_namespace_execute_for_post_with_request_body(monkeypatch) -> None:  # t
         generator=ToolGenerator([operation], schemas={}, namespace_metadata={}),
     )
     dispatcher = RuntimeToolDispatcher(
-        settings=Settings(pc_host="127.0.0.1", pc_port=9440),
+        settings=Settings(pc_host="127.0.0.1", pc_port=9440, read_only_mode=False),
         load_result=load_result,
     )
 

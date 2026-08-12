@@ -1000,6 +1000,16 @@ Within the server process, `PC_PASSWORD` and `PC_API_KEY` are stored as Pydantic
 
 Running `nutanix-mcp init` or `nutanix-mcp refresh` writes credentials in plaintext to a `.env` file in the current working directory. Ensure this `.env` file is not committed to version control (it is gitignored by default). For security guidance: [authentication and security guide](authentication.md).
 
+When the working directory is read-only, `init` and `refresh` skip this convenience file and log
+`event=config_dotenv_save_skipped` instead of failing. Continue to supply configuration through
+environment variables (for example, Docker `--env-file`) or `--config-file`; no writable `.env`
+inside the container is required.
+
+If every namespace download fails and no existing runtime artifact is available, `init` exits with
+status `1`. The container entrypoint therefore stops before launching `serve-http`. Look for the
+preceding `artifact_download_namespace_failed` records: they include the exception type and message
+for each namespace, which identifies errors such as DNS, connection, TLS, or authentication issues.
+
 </details>
 
 <details>

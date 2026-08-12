@@ -207,7 +207,7 @@ When the same option is set in more than one source, the source with higher prec
 Sources are applied in this order (highest to lowest):
 
 ```
-1. CLI flags          (--pc-host, --pc-port, --log-level, …)
+1. CLI flags          (--pc-host/--pc_host, --pc-port/--pc_port, --log-level, …)
 2. --config-file      (any .json/.yaml/.yml/.toml file passed explicitly)
 3. Environment vars   (process environment or .env in the working directory)
 4. Hardcoded defaults (defined in src/config/settings.py)
@@ -243,6 +243,16 @@ Validation runs in this sequence:
 6. For `run` (without `--validate-only`) when `PC_HOST` is set: a connectivity/auth probe is
    issued against `https://{pc_host}:{pc_port}/api/prism/unversioned/info` (OPTIONS request,
    up to 3 attempts with exponential backoff: 1 s, then up to 8 s between retries).
+
+After a successful `init` or `refresh`, the CLI attempts to save the resolved settings to `.env`
+as a convenience for later local runs. If the working directory is read-only or the file cannot
+otherwise be written, the CLI logs `event=config_dotenv_save_skipped` and preserves the successful
+command result. Environment variables and `--config-file` remain the recommended configuration
+sources for read-only container deployments.
+
+`init` exits with status `1` when it finishes without producing any runtime artifact. This makes
+container entrypoints fail immediately after a completely unsuccessful download instead of
+continuing into `serve-http` and reporting a secondary “No YAML artifacts found” exception.
 
 ### Missing required values
 

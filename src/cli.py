@@ -19,8 +19,19 @@ from .server import build_runtime_dispatcher
 LOGGER = logging.getLogger(__name__)
 
 
-def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None:
-    """Persist resolved runtime settings for repeatable local runs."""
+def _runtime_artifacts_available(artifacts_dir: Path) -> bool:
+    """Return whether init left at least one loadable runtime artifact."""
+    return next(artifacts_dir.glob("*-all-documentation.yaml"), None) is not None
+
+
+def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> bool:
+    """Persist resolved settings when the working directory is writable.
+
+    Artifact initialization has already completed by the time this helper runs, so
+    an optional convenience file must not turn a successful init or refresh into a
+    failure. This is especially important for containers with a read-only root
+    filesystem, where configuration is normally supplied through the environment.
+    """
     content = "\n".join(
         [
             f"PC_HOST={settings.pc_host or ''}",
@@ -36,7 +47,29 @@ def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None
             "",
         ]
     )
-    target_file.write_text(content, encoding="utf-8")
+    try:
+        target_file.write_text(content, encoding="utf-8")
+    except OSError as exc:
+        LOGGER.warning(
+            "event=config_dotenv_save_skipped path=%s error=%s",
+            target_file,
+            exc,
+        )
+        return False
+    return True
+
+
+def _add_pc_connection_arguments(
+    parser: argparse.ArgumentParser,
+    *,
+    suppress_defaults: bool = False,
+) -> None:
+    """Add Prism Central flags, accepting hyphenated and underscored spellings."""
+    default = argparse.SUPPRESS if suppress_defaults else None
+    parser.add_argument("--pc-host", "--pc_host", dest="pc_host", default=default)
+    parser.add_argument("--pc-port", "--pc_port", dest="pc_port", type=int, default=default)
+    parser.add_argument("--pc-username", "--pc_username", dest="pc_username", default=default)
+    parser.add_argument("--pc-password", "--pc_password", dest="pc_password", default=default)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -48,10 +81,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--config-file",
         help="Path to config file (.json/.yaml/.yml/.toml)",
     )
-    parser.add_argument("--pc-host")
-    parser.add_argument("--pc-port", type=int)
-    parser.add_argument("--pc-username")
-    parser.add_argument("--pc-password")
+    _add_pc_connection_arguments(parser)
     parser.add_argument("--pc-api-key")
     parser.add_argument("--pc-insecure", choices=["true", "false"])
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
@@ -61,27 +91,34 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--namespace-override-list")
 
     subparsers = parser.add_subparsers(dest="command", required=False)
-    subparsers.add_parser("init", help="Download YAMLs using namespace/version discovery")
+    init_parser = subparsers.add_parser(
+        "init", help="Download YAMLs using namespace/version discovery"
+    )
+    _add_pc_connection_arguments(init_parser, suppress_defaults=True)
 
     refresh_parser = subparsers.add_parser(
         "refresh",
         help="Refresh YAMLs by clearing and downloading latest",
     )
+    _add_pc_connection_arguments(refresh_parser, suppress_defaults=True)
     refresh_parser.add_argument("--force", action="store_true")
 
     run_parser = subparsers.add_parser(
         "run",
         help="Run server startup YAML loading flow",
     )
+    _add_pc_connection_arguments(run_parser, suppress_defaults=True)
     run_parser.add_argument("--validate-only", action="store_true")
-    subparsers.add_parser(
+    stdio_parser = subparsers.add_parser(
         "serve-stdio",
         help="Run MCP stdio server for Cursor/Claude/Inspector clients",
     )
+    _add_pc_connection_arguments(stdio_parser, suppress_defaults=True)
     http_parser = subparsers.add_parser(
         "serve-http",
         help="Run MCP Streamable HTTP server",
     )
+    _add_pc_connection_arguments(http_parser, suppress_defaults=True)
     http_parser.add_argument("--host", default="0.0.0.0")
     http_parser.add_argument("--port", type=int, default=8000)
     return parser
@@ -195,6 +232,12 @@ def main() -> None:
                 indent=2,
             )
         )
+        if not _runtime_artifacts_available(settings.artifacts_dir):
+            LOGGER.error(
+                "event=init_failed reason=no_artifacts_available artifacts_dir=%s",
+                settings.artifacts_dir,
+            )
+            raise SystemExit(1)
         return
 
     if command == "refresh":

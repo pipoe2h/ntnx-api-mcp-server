@@ -383,11 +383,18 @@ def download_yamls(
                     duration_ms=int((time.perf_counter() - namespace_started) * 1000),
                 )
         except Exception as exc:
-            summary.add_failed("unexpected_error")
+            reason = f"unexpected_error:{type(exc).__name__}"
+            LOGGER.error(
+                "event=artifact_download_namespace_failed namespace=%s error_type=%s error=%s",
+                namespace,
+                type(exc).__name__,
+                exc,
+            )
+            summary.add_failed(reason)
             summary.add_namespace_result(
                 namespace=namespace,
                 status="failed",
-                reason=f"unexpected_error:{type(exc).__name__}",
+                reason=reason,
                 duration_ms=int((time.perf_counter() - namespace_started) * 1000),
             )
 
