@@ -19,8 +19,14 @@ from .server import build_runtime_dispatcher
 LOGGER = logging.getLogger(__name__)
 
 
-def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None:
-    """Persist resolved runtime settings for repeatable local runs."""
+def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> bool:
+    """Persist resolved settings when the working directory is writable.
+
+    Artifact initialization has already completed by the time this helper runs, so
+    an optional convenience file must not turn a successful init or refresh into a
+    failure. This is especially important for containers with a read-only root
+    filesystem, where configuration is normally supplied through the environment.
+    """
     content = "\n".join(
         [
             f"PC_HOST={settings.pc_host or ''}",
@@ -36,7 +42,16 @@ def _save_config_dotenv(settings: Any, target_file: Path = Path(".env")) -> None
             "",
         ]
     )
-    target_file.write_text(content, encoding="utf-8")
+    try:
+        target_file.write_text(content, encoding="utf-8")
+    except OSError as exc:
+        LOGGER.warning(
+            "event=config_dotenv_save_skipped path=%s error=%s",
+            target_file,
+            exc,
+        )
+        return False
+    return True
 
 
 def _build_parser() -> argparse.ArgumentParser:

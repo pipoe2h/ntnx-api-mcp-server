@@ -1000,6 +1000,11 @@ Within the server process, `PC_PASSWORD` and `PC_API_KEY` are stored as Pydantic
 
 Running `nutanix-mcp init` or `nutanix-mcp refresh` writes credentials in plaintext to a `.env` file in the current working directory. Ensure this `.env` file is not committed to version control (it is gitignored by default). For security guidance: [authentication and security guide](authentication.md).
 
+When the working directory is read-only, `init` and `refresh` skip this convenience file and log
+`event=config_dotenv_save_skipped` instead of failing. Continue to supply configuration through
+environment variables (for example, Docker `--env-file`) or `--config-file`; no writable `.env`
+inside the container is required.
+
 </details>
 
 <details>
