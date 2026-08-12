@@ -3,7 +3,7 @@ name: Build and Publish Multi-Platform Container
 on:
     push:
         branches:
-            - main
+            - "**"
         tags:
             - "v*"
     pull_request:
@@ -17,6 +17,7 @@ env:
 
 jobs:
     build:
+        if: github.event_name != 'pull_request'
         runs-on: ubuntu-latest
 
         permissions:
@@ -65,3 +66,68 @@ jobs:
                   labels: ${{ steps.meta.outputs.labels }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
+
+            - name: Add image pull instructions to the job summary
+              if: github.ref_type == 'branch'
+              env:
+                  IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+              run: |
+                  branch_image=$(printf '%s\n' "$IMAGE_TAGS" | grep -v ':sha-' | head -n 1)
+                  sha_image=$(printf '%s\n' "$IMAGE_TAGS" | grep ':sha-' | head -n 1)
+                  {
+                    echo '## Published container images'
+                    echo
+                    echo '```console'
+                    echo "docker pull $branch_image"
+                    echo "docker pull $sha_image"
+                    echo '```'
+                    echo
+                    echo 'The branch tag is sanitized by `docker/metadata-action`; use the immutable SHA tag for repeatable tests.'
+                    echo
+                    echo 'Private or internal GHCR packages require authentication. Run `docker login ghcr.io` with a token that has `read:packages`, and ensure the package visibility and repository access settings allow the intended testers to pull it.'
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+    pull-request-image:
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: read
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v4
+
+            - name: Build pull request image as an OCI archive
+              uses: docker/build-push-action@v7
+              with:
+                  context: .
+                  platforms: linux/amd64
+                  outputs: type=oci,dest=/tmp/image.tar
+                  tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            - name: Upload pull request image
+              uses: actions/upload-artifact@v4
+              with:
+                  name: pull-request-image
+                  path: /tmp/image.tar
+                  if-no-files-found: error
+
+            - name: Add image loading instructions to the job summary
+              run: |
+                  {
+                    echo '## Test the pull request image'
+                    echo
+                    echo 'Download the `pull-request-image` artifact, extract it if necessary, then run:'
+                    echo
+                    echo '```console'
+                    echo 'docker load --input image.tar'
+                    echo '```'
+                    echo
+                    echo 'This unprivileged path does not log in to GHCR or publish pull request code.'
+                  } >> "$GITHUB_STEP_SUMMARY"
