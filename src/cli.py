@@ -64,12 +64,12 @@ def _add_pc_connection_arguments(
     *,
     suppress_defaults: bool = False,
 ) -> None:
-    """Add Prism Central flags, accepting hyphenated and underscored spellings."""
+    """Add the original hyphenated Prism Central connection flags."""
     default = argparse.SUPPRESS if suppress_defaults else None
-    parser.add_argument("--pc-host", "--pc_host", dest="pc_host", default=default)
-    parser.add_argument("--pc-port", "--pc_port", dest="pc_port", type=int, default=default)
-    parser.add_argument("--pc-username", "--pc_username", dest="pc_username", default=default)
-    parser.add_argument("--pc-password", "--pc_password", dest="pc_password", default=default)
+    parser.add_argument("--pc-host", default=default)
+    parser.add_argument("--pc-port", type=int, default=default)
+    parser.add_argument("--pc-username", default=default)
+    parser.add_argument("--pc-password", default=default)
 
 
 def _build_parser() -> argparse.ArgumentParser:

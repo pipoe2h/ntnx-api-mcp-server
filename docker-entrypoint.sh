@@ -24,13 +24,9 @@ import sys
 
 value_options = {
     "--pc-host",
-    "--pc_host",
     "--pc-port",
-    "--pc_port",
     "--pc-username",
-    "--pc_username",
     "--pc-password",
-    "--pc_password",
 }
 forwarded = []
 arguments = iter(sys.argv[1:])

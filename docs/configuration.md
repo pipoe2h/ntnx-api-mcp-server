@@ -207,7 +207,7 @@ When the same option is set in more than one source, the source with higher prec
 Sources are applied in this order (highest to lowest):
 
 ```
-1. CLI flags          (--pc-host/--pc_host, --pc-port/--pc_port, --log-level, …)
+1. CLI flags          (--pc-host, --pc-port, --log-level, …)
 2. --config-file      (any .json/.yaml/.yml/.toml file passed explicitly)
 3. Environment vars   (process environment or .env in the working directory)
 4. Hardcoded defaults (defined in src/config/settings.py)

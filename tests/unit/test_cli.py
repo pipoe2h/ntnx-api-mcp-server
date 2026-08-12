@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.cli import _build_overrides
 from src.cli import _build_parser
 from src.cli import _save_config_dotenv
@@ -53,17 +55,17 @@ def test_runtime_artifacts_available_requires_matching_yaml(tmp_path: Path) -> N
     assert _runtime_artifacts_available(tmp_path) is True
 
 
-def test_pc_arguments_accept_underscores_after_command() -> None:
+def test_original_pc_arguments_are_accepted_after_command() -> None:
     args = _build_parser().parse_args(
         [
             "serve-http",
-            "--pc_host",
+            "--pc-host",
             "pc.example.test",
-            "--pc_port",
+            "--pc-port",
             "9441",
-            "--pc_username",
+            "--pc-username",
             "admin",
-            "--pc_password",
+            "--pc-password",
             "secret",
         ]
     )
@@ -95,3 +97,10 @@ def test_pc_arguments_accept_hyphens_before_command() -> None:
     assert overrides["pc_password"] == "secret"
     assert "pc_port" not in overrides
     assert Settings(**overrides).pc_port == 9440
+
+
+def test_underscored_pc_argument_is_not_accepted() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        _build_parser().parse_args(["serve-http", "--pc_host", "pc.example.test"])
+
+    assert exc_info.value.code == 2
