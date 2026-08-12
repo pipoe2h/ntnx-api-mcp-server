@@ -7,7 +7,12 @@ import logging
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
+from src.cli import _build_overrides
+from src.cli import _build_parser
 from src.cli import _save_config_dotenv
+from src.cli import _runtime_artifacts_available
 from src.config import Settings
 
 
@@ -35,3 +40,67 @@ def test_save_config_dotenv_skips_read_only_filesystem(caplog) -> None:  # type:
     assert saved is False
     assert "event=config_dotenv_save_skipped" in caplog.text
     assert "Read-only file system" in caplog.text
+
+
+def test_runtime_artifacts_available_requires_matching_yaml(tmp_path: Path) -> None:
+    assert _runtime_artifacts_available(tmp_path) is False
+
+    (tmp_path / "notes.yaml").write_text("not an artifact", encoding="utf-8")
+    assert _runtime_artifacts_available(tmp_path) is False
+
+    (tmp_path / "vmm-v4.2-all-documentation.yaml").write_text(
+        "openapi: 3.0.0\npaths: {}\n",
+        encoding="utf-8",
+    )
+    assert _runtime_artifacts_available(tmp_path) is True
+
+
+def test_original_pc_arguments_are_accepted_after_command() -> None:
+    args = _build_parser().parse_args(
+        [
+            "serve-http",
+            "--pc-host",
+            "pc.example.test",
+            "--pc-port",
+            "9441",
+            "--pc-username",
+            "admin",
+            "--pc-password",
+            "secret",
+        ]
+    )
+
+    assert _build_overrides(args) == {
+        "pc_host": "pc.example.test",
+        "pc_port": 9441,
+        "pc_username": "admin",
+        "pc_password": "secret",
+    }
+
+
+def test_pc_arguments_accept_hyphens_before_command() -> None:
+    args = _build_parser().parse_args(
+        [
+            "--pc-host",
+            "pc.example.test",
+            "--pc-username",
+            "admin",
+            "--pc-password",
+            "secret",
+            "serve-http",
+        ]
+    )
+
+    overrides = _build_overrides(args)
+    assert overrides["pc_host"] == "pc.example.test"
+    assert overrides["pc_username"] == "admin"
+    assert overrides["pc_password"] == "secret"
+    assert "pc_port" not in overrides
+    assert Settings(**overrides).pc_port == 9440
+
+
+def test_underscored_pc_argument_is_not_accepted() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        _build_parser().parse_args(["serve-http", "--pc_host", "pc.example.test"])
+
+    assert exc_info.value.code == 2

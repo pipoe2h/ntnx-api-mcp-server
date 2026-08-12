@@ -163,6 +163,22 @@ You can override the image command to retain stdio transport:
 docker run --rm -i --env-file .env nutanix-mcp:latest serve-stdio
 ```
 
+Prism Central connection settings may also be supplied using the original hyphenated command
+arguments, which may appear before or after the subcommand. `--pc-port` defaults to `9440` when
+omitted. For the container's default HTTP startup, the entrypoint also forwards these arguments to
+its automatic `init` command:
+
+```bash
+nutanix-mcp serve-http \
+  --pc-host pc.example.com \
+  --pc-port 9440 \
+  --pc-username admin \
+  --pc-password 'replace-me'
+```
+
+Command-line passwords can be visible in process listings and Kubernetes pod specifications. Use a
+Secret-backed environment variable for `PC_PASSWORD` when possible.
+
 ### 3.3 Run HTTP without Docker
 
 ```bash

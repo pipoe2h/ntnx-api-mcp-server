@@ -1005,6 +1005,11 @@ When the working directory is read-only, `init` and `refresh` skip this convenie
 environment variables (for example, Docker `--env-file`) or `--config-file`; no writable `.env`
 inside the container is required.
 
+If every namespace download fails and no existing runtime artifact is available, `init` exits with
+status `1`. The container entrypoint therefore stops before launching `serve-http`. Look for the
+preceding `artifact_download_namespace_failed` records: they include the exception type and message
+for each namespace, which identifies errors such as DNS, connection, TLS, or authentication issues.
+
 </details>
 
 <details>

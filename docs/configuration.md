@@ -250,6 +250,10 @@ otherwise be written, the CLI logs `event=config_dotenv_save_skipped` and preser
 command result. Environment variables and `--config-file` remain the recommended configuration
 sources for read-only container deployments.
 
+`init` exits with status `1` when it finishes without producing any runtime artifact. This makes
+container entrypoints fail immediately after a completely unsuccessful download instead of
+continuing into `serve-http` and reporting a secondary “No YAML artifacts found” exception.
+
 ### Missing required values
 
 | Condition | Exact error message | Exit code |
